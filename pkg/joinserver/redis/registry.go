@@ -264,7 +264,11 @@ func (r *DeviceRegistry) set(ctx context.Context, tx *redis.Tx, uid string, gets
 					return err
 				}
 				if i != 0 {
-					return errDuplicateIdentifiers.New()
+					uid, err := tx.Get(ctx, ek).Result()
+					if err != nil {
+						return err
+					}
+					return errDuplicateIdentifiers.WithAttributes("duplicate_uid", uid)
 				}
 				p.SetNX(ctx, ek, uid, 0)
 			}

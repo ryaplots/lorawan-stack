@@ -199,7 +199,11 @@ func (r *DeviceRegistry) Set(ctx context.Context, ids ttnpb.EndDeviceIdentifiers
 						return err
 					}
 					if i != 0 {
-						return errDuplicateIdentifiers.New()
+						uid, err := tx.Get(ctx, ek).Result()
+						if err != nil {
+							return err
+						}
+						return errDuplicateIdentifiers.WithAttributes("duplicate_uid", uid)
 					}
 					p.SetNX(ctx, ek, uid, 0)
 				}

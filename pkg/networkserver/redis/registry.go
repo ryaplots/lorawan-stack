@@ -898,7 +898,11 @@ func (r *DeviceRegistry) SetByID(ctx context.Context, appID ttnpb.ApplicationIde
 						return err
 					}
 					if i != 0 {
-						return errDuplicateIdentifiers.New()
+						uid, err := tx.Get(ctx, ek).Result()
+						if err != nil {
+							return err
+						}
+						return errDuplicateIdentifiers.WithAttributes("duplicate_uid", uid)
 					}
 					p.Set(ctx, ek, uid, 0)
 					ttnredis.UnlockMutex(ctx, p, ek, lockIDStr, r.LockTTL)
