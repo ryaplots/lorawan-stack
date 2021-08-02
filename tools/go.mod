@@ -33,9 +33,11 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/client9/misspell v0.3.4
 	github.com/cloudflare/cfssl v1.4.1
+	github.com/json-iterator/go v1.1.10
 	github.com/magefile/mage v1.10.0
 	github.com/mattn/goveralls v0.0.5
 	github.com/mgechev/revive v1.0.2
 	go.thethings.network/lorawan-stack/v3 v3.0.0-00010101000000-000000000000
+	golang.org/x/text v0.3.6
 	gopkg.in/yaml.v2 v2.4.0
 )

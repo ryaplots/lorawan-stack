@@ -89,6 +89,7 @@ require (
 	github.com/jaytaylor/html2text v0.0.0-20200412013138-3577fbdbcff7
 	github.com/jinzhu/gorm v1.9.16
 	github.com/jmhodges/levigo v1.0.0 // indirect
+	github.com/json-iterator/go v1.1.10
 	github.com/jtacoma/uritemplates v1.0.0
 	github.com/kr/pretty v0.2.1
 	github.com/labstack/echo/v4 v4.1.16
@@ -134,6 +135,7 @@ require (
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 	golang.org/x/oauth2 v0.0.0-20210427180440-81ed05c6b58c
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/text v0.3.6
 	google.golang.org/api v0.46.0 // indirect
 	// NOTE: google.golang.org/genproto is actually pinned to v0.0.0-20200513103714-09dca8ec2884 above.
 	google.golang.org/genproto v0.0.0-20210429181445-86c259c2b4ab
