@@ -12,6 +12,8 @@ For details about compatibility between different releases, see the **Commitment
 ### Added
 
 - Support for enhanced security policies of Packet Broker services.
+- Packet Broker gateway visibility management (default settings only). See `ttn-lw-cli packetbroker home-networks gateway-visibilities --help` for more information.
+- Desired mac settings to end device general settings in the Console.
 
 ### Changed
 
