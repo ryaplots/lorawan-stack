@@ -116,27 +116,46 @@ func generateLinkADRReq(ctx context.Context, dev *ttnpb.EndDevice, phy *band.Ban
 		nbTrans    uint32
 	)
 	minDataRateIndex, maxDataRateIndex, ok := channelDataRateRange(dev.MacState.DesiredParameters.Channels...)
-	if !ok ||
-		dev.MacState.DesiredParameters.AdrTxPowerIndex > uint32(phy.MaxTxPowerIndex()) ||
-		dev.MacState.DesiredParameters.AdrDataRateIndex > phy.MaxADRDataRateIndex {
+	if !ok {
 		return linkADRReqParameters{}, false, ErrCorruptedMACState.
-			WithAttributes(
-				"ok", ok,
-				"adr_tx_power_idx", dev.MacState.DesiredParameters.AdrTxPowerIndex,
-				"phy_max_tx_power", phy.MaxTxPowerIndex(),
-				"adr_data_rate_idx", dev.MacState.DesiredParameters.AdrDataRateIndex,
-				"phy_max_adr_data_rate_index", phy.MaxADRDataRateIndex,
-			).
 			WithCause(ErrChannelDataRateRange)
 	}
-	if dev.MacState.DesiredParameters.AdrDataRateIndex < minDataRateIndex || dev.MacState.DesiredParameters.AdrDataRateIndex > maxDataRateIndex {
-		return linkADRReqParameters{}, false, ErrCorruptedMACState.
-			WithAttributes(
-				"adr_data_rate_index", dev.MacState.DesiredParameters.AdrDataRateIndex,
-				"min_data_rate_index", minDataRateIndex,
-				"max_data_rate_index", maxDataRateIndex,
-			).
-			WithCause(ErrChannelDataRateRange)
+
+	if dev.MacState.DesiredParameters.AdrTxPowerIndex != dev.MacState.CurrentParameters.AdrTxPowerIndex {
+		attributes := []interface{}{
+			"current_adr_tx_power_index", dev.MacState.CurrentParameters.AdrTxPowerIndex,
+			"desired_adr_tx_power_index", dev.MacState.DesiredParameters.AdrTxPowerIndex,
+		}
+		switch {
+		case dev.MacState.DesiredParameters.AdrTxPowerIndex > uint32(phy.MaxTxPowerIndex()):
+			return linkADRReqParameters{}, false, ErrCorruptedMACState.
+				WithAttributes(append(attributes,
+					"phy_max_tx_power_index", phy.MaxTxPowerIndex(),
+				)...)
+		}
+	}
+	if dev.MacState.DesiredParameters.AdrDataRateIndex != dev.MacState.CurrentParameters.AdrDataRateIndex {
+		attributes := []interface{}{
+			"current_adr_data_rate_index", dev.MacState.CurrentParameters.AdrDataRateIndex,
+			"desired_adr_data_rate_index", dev.MacState.DesiredParameters.AdrDataRateIndex,
+		}
+		switch {
+		case dev.MacState.DesiredParameters.AdrDataRateIndex > phy.MaxADRDataRateIndex:
+			return linkADRReqParameters{}, false, ErrCorruptedMACState.
+				WithAttributes(append(attributes,
+					"phy_max_adr_data_rate_index", phy.MaxADRDataRateIndex,
+				)...)
+		case dev.MacState.DesiredParameters.AdrDataRateIndex < minDataRateIndex:
+			return linkADRReqParameters{}, false, ErrCorruptedMACState.
+				WithAttributes(append(attributes,
+					"min_adr_data_rate_index", minDataRateIndex,
+				)...)
+		case dev.MacState.DesiredParameters.AdrDataRateIndex > maxDataRateIndex:
+			return linkADRReqParameters{}, false, ErrCorruptedMACState.
+				WithAttributes(append(attributes,
+					"max_adr_data_rate_index", maxDataRateIndex,
+				)...)
+		}
 	}
 
 	drIdx = dev.MacState.DesiredParameters.AdrDataRateIndex
@@ -157,6 +176,9 @@ func generateLinkADRReq(ctx context.Context, dev *ttnpb.EndDevice, phy *band.Ban
 
 	default:
 		for deviceRejectedADRDataRateIndex(dev, drIdx) || deviceRejectedADRTXPowerIndex(dev, txPowerIdx) {
+			if drIdx < minDataRateIndex {
+				return linkADRReqParameters{}, false, nil
+			}
 			// Since either data rate or TX power index (or both) were rejected by the device, undo the
 			// desired ADR adjustments step-by-step until possibly fitting index pair is found.
 			if drIdx == minDataRateIndex && (deviceRejectedADRDataRateIndex(dev, drIdx) || txPowerIdx == 0) {
