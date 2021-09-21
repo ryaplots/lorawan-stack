@@ -39,6 +39,10 @@ type DeviceRegistry struct {
 	Redis *ttnredis.Client
 }
 
+func (r *DeviceRegistry) allKey(ctx context.Context) string {
+	return r.Redis.Key("all")
+}
+
 func (r *DeviceRegistry) uidKey(uid string) string {
 	return r.Redis.Key("uid", uid)
 }
@@ -224,6 +228,27 @@ func (r *DeviceRegistry) Set(ctx context.Context, ids ttnpb.EndDeviceIdentifiers
 		return nil, ttnredis.ConvertError(err)
 	}
 	return pb, nil
+}
+
+func (r *DeviceRegistry) Range(ctx context.Context, paths []string, f func(context.Context, ttnpb.EndDeviceIdentifiers, *ttnpb.EndDevice) bool) error {
+	uids, err := r.Redis.SMembers(ctx, r.allKey(ctx)).Result()
+	if err != nil {
+		return err
+	}
+	for _, uid := range uids {
+		dev := &ttnpb.EndDevice{}
+		if err := ttnredis.GetProto(ctx, r.Redis, uid).ScanProto(dev); err != nil {
+			return err
+		}
+		dev, err = ttnpb.FilterGetEndDevice(dev, paths...)
+		if err != nil {
+			return err
+		}
+		if !f(ctx, dev.EndDeviceIdentifiers, dev) {
+			return nil
+		}
+	}
+	return nil
 }
 
 func applyLinkFieldMask(dst, src *ttnpb.ApplicationLink, paths ...string) (*ttnpb.ApplicationLink, error) {

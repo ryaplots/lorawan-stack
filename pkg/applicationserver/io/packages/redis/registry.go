@@ -20,6 +20,7 @@ import (
 	"math/rand"
 	"runtime/trace"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -80,6 +81,10 @@ func (r *ApplicationPackagesRegistry) Init(ctx context.Context) error {
 	r.entropyMu = &sync.Mutex{}
 	r.entropy = ulid.Monotonic(rand.New(rand.NewSource(time.Now().UnixNano())), 1000)
 	return nil
+}
+
+func (r *ApplicationPackagesRegistry) allKey(ctx context.Context) string {
+	return r.Redis.Key("all")
 }
 
 func (r *ApplicationPackagesRegistry) uidKey(uid string) string {
@@ -501,4 +506,56 @@ func (r *ApplicationPackagesRegistry) EndDeviceTransaction(ctx context.Context, 
 		}
 	}()
 	return fn(ctx)
+}
+
+func (r ApplicationPackagesRegistry) Range(
+	ctx context.Context, paths []string,
+	devFunc func(context.Context, ttnpb.EndDeviceIdentifiers, *ttnpb.ApplicationPackageAssociation) bool,
+	appFunc func(context.Context, ttnpb.ApplicationIdentifiers, *ttnpb.ApplicationPackageDefaultAssociation) bool,
+) error {
+	uids, err := r.Redis.SMembers(ctx, r.allKey(ctx)).Result()
+	if err != nil {
+		return err
+	}
+	for _, uid := range uids {
+		entityUID, _ := unique.SplitDoubleUID(uid)
+		ctx, err := unique.WithContext(ctx, entityUID)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(entityUID, ".") {
+			ids, err := unique.ToDeviceID(uid)
+			if err != nil {
+				return err
+			}
+			assoc := &ttnpb.ApplicationPackageAssociation{}
+			if err := ttnredis.GetProto(ctx, r.Redis, uid).ScanProto(assoc); err != nil {
+				return err
+			}
+			assoc, err = applyAssociationFieldMask(nil, assoc, paths...)
+			if err != nil {
+				return err
+			}
+			if !devFunc(ctx, ids, assoc) {
+				return nil
+			}
+		} else {
+			ids, err := unique.ToApplicationID(uid)
+			if err != nil {
+				return err
+			}
+			defAssoc := &ttnpb.ApplicationPackageDefaultAssociation{}
+			if err := ttnredis.GetProto(ctx, r.Redis, uid).ScanProto(defAssoc); err != nil {
+				return err
+			}
+			defAssoc, err = applyDefaultAssociationFieldMask(nil, defAssoc, paths...)
+			if err != nil {
+				return err
+			}
+			if !appFunc(ctx, ids, defAssoc) {
+				return nil
+			}
+		}
+	}
+	return nil
 }

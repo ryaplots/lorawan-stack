@@ -53,6 +53,10 @@ type WebhookRegistry struct {
 	Redis *ttnredis.Client
 }
 
+func (r *WebhookRegistry) allKey(ctx context.Context) string {
+	return r.Redis.Key("all")
+}
+
 func (r *WebhookRegistry) appKey(uid string) string {
 	return r.Redis.Key("uid", uid)
 }
@@ -217,4 +221,37 @@ func (r WebhookRegistry) Set(ctx context.Context, ids ttnpb.ApplicationWebhookId
 		return nil, ttnredis.ConvertError(err)
 	}
 	return pb, nil
+}
+
+var errApplicationUID = errors.DefineCorruption("application_uid", "invalid application UID `{application_uid}`")
+
+// Range implements WebhookRegistry.
+func (r WebhookRegistry) Range(ctx context.Context, paths []string, f func(context.Context, ttnpb.ApplicationIdentifiers, *ttnpb.ApplicationWebhook) bool) error {
+	uids, err := r.Redis.SMembers(ctx, r.allKey(ctx)).Result()
+	if err != nil {
+		return err
+	}
+	for _, uid := range uids {
+		appUID, webID := unique.SplitDoubleUID(uid)
+		ctx, err := unique.WithContext(ctx, appUID)
+		if err != nil {
+			return errApplicationUID.WithCause(err).WithAttributes("application_uid", appUID, "webhook_id", webID)
+		}
+		ids, err := unique.ToApplicationID(appUID)
+		if err != nil {
+			return errApplicationUID.WithCause(err).WithAttributes("application_uid", appUID, "webhook_id", webID)
+		}
+		wh := &ttnpb.ApplicationWebhook{}
+		if err := ttnredis.GetProto(ctx, r.Redis, r.idKey(appUID, webID)).ScanProto(wh); err != nil {
+			return err
+		}
+		wh, err = applyWebhookFieldMask(nil, wh, paths...)
+		if err != nil {
+			return err
+		}
+		if !f(ctx, ids, wh) {
+			return nil
+		}
+	}
+	return nil
 }

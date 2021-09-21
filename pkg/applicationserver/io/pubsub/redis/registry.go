@@ -91,7 +91,7 @@ func (r PubSubRegistry) Range(ctx context.Context, paths []string, f func(contex
 		return err
 	}
 	for _, uid := range uids {
-		appUID, psID := pubsub.SplitPubSubUID(uid)
+		appUID, psID := unique.SplitDoubleUID(uid)
 		ctx, err := unique.WithContext(ctx, appUID)
 		if err != nil {
 			return errApplicationUID.WithCause(err).WithAttributes("application_uid", appUID, "pub_sub_id", psID)
@@ -103,9 +103,6 @@ func (r PubSubRegistry) Range(ctx context.Context, paths []string, f func(contex
 		pb := &ttnpb.ApplicationPubSub{}
 		if err := ttnredis.GetProto(ctx, r.Redis, r.uidKey(appUID, psID)).ScanProto(pb); err != nil {
 			return err
-		}
-		if err != nil {
-			return errApplicationUID.WithCause(err).WithAttributes("application_uid", appUID, "pub_sub_id", psID)
 		}
 		pb, err = applyPubSubFieldMask(nil, pb, paths...)
 		if err != nil {
