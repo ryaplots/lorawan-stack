@@ -210,3 +210,28 @@ func (s *deviceStore) DeleteEndDevice(ctx context.Context, id *ttnpb.EndDeviceId
 	defer trace.StartRegion(ctx, "delete end device").End()
 	return s.deleteEntity(ctx, id)
 }
+
+func (s *deviceStore) FindAllEndDevices(ctx context.Context) ([]*ttnpb.EndDeviceIdentifiers, error) {
+	defer trace.StartRegion(ctx, "find all end devices").End()
+	query := s.query(ctx, EndDevice{}).Select([]string{"application_id", "device_id", "join_eui", "dev_eui"})
+	query = query.Order("device_id ASC")
+	if limit, offset := limitAndOffsetFromContext(ctx); limit != 0 {
+		countTotal(ctx, query.Model(&EndDevice{}))
+		query = query.Limit(limit).Offset(offset)
+	}
+	var devModels []EndDevice
+	if err := query.Find(&devModels).Error; err != nil {
+		return nil, err
+	}
+	setTotal(ctx, uint64(len(devModels)))
+	if query.Error != nil {
+		return nil, query.Error
+	}
+	devProtos := make([]*ttnpb.EndDeviceIdentifiers, len(devModels))
+	for i, devModel := range devModels {
+		devProto := &ttnpb.EndDevice{}
+		devModel.toPB(devProto, &pbtypes.FieldMask{})
+		devProtos[i] = &devProto.EndDeviceIdentifiers
+	}
+	return devProtos, nil
+}
