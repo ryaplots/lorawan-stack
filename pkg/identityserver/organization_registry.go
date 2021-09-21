@@ -147,7 +147,6 @@ func (is *IdentityServer) getOrganization(ctx context.Context, req *ttnpb.GetOrg
 
 func (is *IdentityServer) listOrganizations(ctx context.Context, req *ttnpb.ListOrganizationsRequest) (orgs *ttnpb.Organizations, err error) {
 	req.FieldMask = cleanFieldMaskPaths(ttnpb.OrganizationFieldPathsNested, req.FieldMask, getPaths, nil)
-	var includeIndirect bool
 	if req.Collaborator == nil {
 		authInfo, err := is.authInfo(ctx)
 		if err != nil {
@@ -158,7 +157,6 @@ func (is *IdentityServer) listOrganizations(ctx context.Context, req *ttnpb.List
 			return &ttnpb.Organizations{}, nil
 		}
 		req.Collaborator = collaborator
-		includeIndirect = true
 	}
 	if usrIDs := req.Collaborator.GetUserIds(); usrIDs != nil {
 		if err = rights.RequireUser(ctx, *usrIDs, ttnpb.RIGHT_USER_ORGANIZATIONS_LIST); err != nil {
@@ -180,7 +178,7 @@ func (is *IdentityServer) listOrganizations(ctx context.Context, req *ttnpb.List
 	}()
 	orgs = &ttnpb.Organizations{}
 	err = is.withDatabase(ctx, func(db *gorm.DB) (err error) {
-		ids, err := is.getMembershipStore(ctx, db).FindMemberships(paginateCtx, req.Collaborator, "organization", includeIndirect)
+		ids, err := is.getMembershipStore(ctx, db).FindMemberships(paginateCtx, req.Collaborator, "organization")
 		if err != nil {
 			return err
 		}

@@ -52,10 +52,10 @@ func (s *membershipStore) queryMemberships(ctx context.Context, id *ttnpb.Organi
 	return query
 }
 
-func (s *membershipStore) FindMemberships(ctx context.Context, id *ttnpb.OrganizationOrUserIdentifiers, entityType string, includeIndirect bool) ([]*ttnpb.EntityIdentifiers, error) {
+func (s *membershipStore) FindMemberships(ctx context.Context, id *ttnpb.OrganizationOrUserIdentifiers, entityType string) ([]*ttnpb.EntityIdentifiers, error) {
 	defer trace.StartRegion(ctx, fmt.Sprintf("find %s memberships of %s", entityType, id.IDString())).End()
 
-	membershipsQuery := s.queryMemberships(ctx, id, entityType, includeIndirect).Select("entity_id").QueryExpr()
+	membershipsQuery := s.queryMemberships(ctx, id, entityType, true).Select("entity_id").QueryExpr()
 	query := s.query(ctx, modelForEntityType(entityType))
 	switch entityType {
 	case "organization":

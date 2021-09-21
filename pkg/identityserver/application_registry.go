@@ -155,7 +155,6 @@ func (is *IdentityServer) getApplication(ctx context.Context, req *ttnpb.GetAppl
 
 func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListApplicationsRequest) (apps *ttnpb.Applications, err error) {
 	req.FieldMask = cleanFieldMaskPaths(ttnpb.ApplicationFieldPathsNested, req.FieldMask, getPaths, nil)
-	var includeIndirect bool
 	if req.Collaborator == nil {
 		authInfo, err := is.authInfo(ctx)
 		if err != nil {
@@ -166,7 +165,6 @@ func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListA
 			return &ttnpb.Applications{}, nil
 		}
 		req.Collaborator = collaborator
-		includeIndirect = true
 	}
 	if usrIDs := req.Collaborator.GetUserIds(); usrIDs != nil {
 		if err = rights.RequireUser(ctx, *usrIDs, ttnpb.RIGHT_USER_APPLICATIONS_LIST); err != nil {
@@ -190,7 +188,7 @@ func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListA
 	}()
 	apps = &ttnpb.Applications{}
 	err = is.withDatabase(ctx, func(db *gorm.DB) error {
-		ids, err := is.getMembershipStore(ctx, db).FindMemberships(paginateCtx, req.Collaborator, "application", includeIndirect)
+		ids, err := is.getMembershipStore(ctx, db).FindMemberships(paginateCtx, req.Collaborator, "application")
 		if err != nil {
 			return err
 		}

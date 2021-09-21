@@ -193,7 +193,6 @@ func (is *IdentityServer) getClient(ctx context.Context, req *ttnpb.GetClientReq
 
 func (is *IdentityServer) listClients(ctx context.Context, req *ttnpb.ListClientsRequest) (clis *ttnpb.Clients, err error) {
 	req.FieldMask = cleanFieldMaskPaths(ttnpb.ClientFieldPathsNested, req.FieldMask, getPaths, nil)
-	var includeIndirect bool
 	if req.Collaborator == nil {
 		authInfo, err := is.authInfo(ctx)
 		if err != nil {
@@ -204,7 +203,6 @@ func (is *IdentityServer) listClients(ctx context.Context, req *ttnpb.ListClient
 			return &ttnpb.Clients{}, nil
 		}
 		req.Collaborator = collaborator
-		includeIndirect = true
 	}
 	if usrIDs := req.Collaborator.GetUserIds(); usrIDs != nil {
 		if err = rights.RequireUser(ctx, *usrIDs, ttnpb.RIGHT_USER_CLIENTS_LIST); err != nil {
@@ -228,7 +226,7 @@ func (is *IdentityServer) listClients(ctx context.Context, req *ttnpb.ListClient
 	}()
 	clis = &ttnpb.Clients{}
 	err = is.withDatabase(ctx, func(db *gorm.DB) error {
-		ids, err := is.getMembershipStore(ctx, db).FindMemberships(paginateCtx, req.Collaborator, "client", includeIndirect)
+		ids, err := is.getMembershipStore(ctx, db).FindMemberships(paginateCtx, req.Collaborator, "client")
 		if err != nil {
 			return err
 		}
