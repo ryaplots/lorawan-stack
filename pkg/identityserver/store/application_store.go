@@ -182,7 +182,7 @@ func (s *applicationStore) PurgeApplication(ctx context.Context, id *ttnpb.Appli
 
 func (s *applicationStore) FindAllApplications(ctx context.Context) ([]*ttnpb.ApplicationIdentifiers, error) {
 	defer trace.StartRegion(ctx, "find all applications").End()
-	query := s.query(ctx, Application{}).Select("application_id")
+	query := s.query(ctx, Application{}, withSoftDeleted()).Select("application_id")
 	query = query.Order("application_id ASC")
 	if limit, offset := limitAndOffsetFromContext(ctx); limit != 0 {
 		countTotal(ctx, query.Model(&Application{}))
