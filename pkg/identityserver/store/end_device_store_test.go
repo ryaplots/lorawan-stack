@@ -225,9 +225,13 @@ func TestEndDeviceStore(t *testing.T) {
 
 		a.So(err, should.BeNil)
 		if a.So(devices, should.HaveLength, 2) {
-			a.So(list, should.Contain, got)
+			a.So(devices, should.Contain, got)
 			a.So(devices, should.Contain, createdNew)
 		}
+
+		deviceIds, err := store.FindAllEndDevices(ctx)
+		a.So(err, should.BeNil)
+		a.So(deviceIds, should.HaveLength, 2)
 
 		err = store.DeleteEndDevice(ctx, &deviceID)
 

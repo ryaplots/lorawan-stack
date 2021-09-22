@@ -149,6 +149,16 @@ func TestApplicationStore(t *testing.T) {
 
 		entity, _ := s.findDeletedEntity(ctx, &ttnpb.ApplicationIdentifiers{ApplicationId: "foo"}, "id")
 
+		store.CreateApplication(ctx, &ttnpb.Application{
+			ApplicationIdentifiers: ttnpb.ApplicationIdentifiers{ApplicationId: "bar"},
+			Name:                   "Bar Application",
+			Description:            "The Amazing Bar Application",
+		})
+
+		entities, err := store.FindAllApplications(ctx)
+		a.So(err, should.BeNil)
+		a.So(entities, should.HaveLength, 2)
+
 		err = store.PurgeApplication(ctx, &ttnpb.ApplicationIdentifiers{ApplicationId: "foo"})
 
 		a.So(err, should.BeNil)
