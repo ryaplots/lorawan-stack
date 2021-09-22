@@ -27,6 +27,7 @@ type RegistryCleaner struct {
 }
 
 func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[ttnpb.EndDeviceIdentifiers]struct{}, err error) {
+	local = make(map[ttnpb.EndDeviceIdentifiers]struct{})
 	err = cleaner.DevRegistry.Range(ctx, []string{"ids"}, func(ctx context.Context, ids ttnpb.EndDeviceIdentifiers, dev *ttnpb.EndDevice) bool {
 		local[ids] = struct{}{}
 		return true
