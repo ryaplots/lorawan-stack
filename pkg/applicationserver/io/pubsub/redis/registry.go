@@ -91,7 +91,7 @@ func (r PubSubRegistry) Range(ctx context.Context, paths []string, f func(contex
 		return err
 	}
 	for _, uid := range uids {
-		appUID, psID := unique.SplitDoubleUID(uid)
+		appUID, psID := pubsub.SplitPubSubUID(uid)
 		ctx, err := unique.WithContext(ctx, appUID)
 		if err != nil {
 			return errApplicationUID.WithCause(err).WithAttributes("application_uid", appUID, "pub_sub_id", psID)

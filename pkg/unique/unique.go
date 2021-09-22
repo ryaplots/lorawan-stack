@@ -18,7 +18,6 @@ package unique
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"go.thethings.network/lorawan-stack/v3/pkg/errors"
@@ -104,14 +103,4 @@ func ToUserID(uid string) (id ttnpb.UserIdentifiers, err error) {
 		return ttnpb.UserIdentifiers{}, errUniqueIdentifier.WithCause(err).WithAttributes("uid", uid)
 	}
 	return id, nil
-}
-
-var uniqueIDPattern = regexp.MustCompile("(.*)\\:(.*)")
-
-func SplitDoubleUID(uid string) (string, string) {
-	matches := uniqueIDPattern.FindStringSubmatch(uid)
-	if len(matches) != 3 {
-		panic(fmt.Sprintf("invalid uniqueID `%s` with matches %v", uid, matches))
-	}
-	return matches[1], matches[2]
 }

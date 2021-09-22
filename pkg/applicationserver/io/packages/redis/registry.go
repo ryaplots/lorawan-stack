@@ -513,49 +513,32 @@ func (r ApplicationPackagesRegistry) Range(
 	devFunc func(context.Context, ttnpb.EndDeviceIdentifiers, *ttnpb.ApplicationPackageAssociation) bool,
 	appFunc func(context.Context, ttnpb.ApplicationIdentifiers, *ttnpb.ApplicationPackageDefaultAssociation) bool,
 ) error {
-	uids, err := r.Redis.SMembers(ctx, r.allKey(ctx)).Result()
-	if err != nil {
-		return err
-	}
-	for _, uid := range uids {
-		entityUID, _ := unique.SplitDoubleUID(uid)
-		ctx, err := unique.WithContext(ctx, entityUID)
-		if err != nil {
-			return err
-		}
-		if strings.Contains(entityUID, ".") {
-			ids, err := unique.ToDeviceID(uid)
-			if err != nil {
-				return err
-			}
+	return ttnredis.RangeRedisKeys(ctx, r.Redis, r.associationKey("*", "*"), 1, func(key string) (bool, error) {
+		if strings.Contains(key, ".") {
 			assoc := &ttnpb.ApplicationPackageAssociation{}
-			if err := ttnredis.GetProto(ctx, r.Redis, uid).ScanProto(assoc); err != nil {
-				return err
+			if err := ttnredis.GetProto(ctx, r.Redis, key).ScanProto(assoc); err != nil {
+				return false, err
 			}
-			assoc, err = applyAssociationFieldMask(nil, assoc, paths...)
+			assoc, err := applyAssociationFieldMask(nil, assoc, paths...)
 			if err != nil {
-				return err
+				return false, err
 			}
-			if !devFunc(ctx, ids, assoc) {
-				return nil
+			if !devFunc(ctx, assoc.EndDeviceIdentifiers, assoc) {
+				return false, nil
 			}
 		} else {
-			ids, err := unique.ToApplicationID(uid)
-			if err != nil {
-				return err
-			}
 			defAssoc := &ttnpb.ApplicationPackageDefaultAssociation{}
-			if err := ttnredis.GetProto(ctx, r.Redis, uid).ScanProto(defAssoc); err != nil {
-				return err
+			if err := ttnredis.GetProto(ctx, r.Redis, key).ScanProto(defAssoc); err != nil {
+				return false, err
 			}
-			defAssoc, err = applyDefaultAssociationFieldMask(nil, defAssoc, paths...)
+			defAssoc, err := applyDefaultAssociationFieldMask(nil, defAssoc, paths...)
 			if err != nil {
-				return err
+				return false, err
 			}
-			if !appFunc(ctx, ids, defAssoc) {
-				return nil
+			if !appFunc(ctx, defAssoc.ApplicationIdentifiers, defAssoc) {
+				return false, nil
 			}
 		}
-	}
-	return nil
+		return true, nil
+	})
 }
