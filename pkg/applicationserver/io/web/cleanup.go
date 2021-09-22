@@ -25,19 +25,19 @@ type RegistryCleaner struct {
 	WebRegistry WebhookRegistry
 }
 
-func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[*ttnpb.ApplicationIdentifiers]struct{}, err error) {
+func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[ttnpb.ApplicationIdentifiers]struct{}, err error) {
 	err = cleaner.WebRegistry.Range(ctx, []string{"ids"},
 		func(ctx context.Context, ids ttnpb.ApplicationIdentifiers, wh *ttnpb.ApplicationWebhook) bool {
-			local[&ids] = struct{}{}
+			local[ids] = struct{}{}
 			return true
 		},
 	)
 	return local, err
 }
 
-func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicationSet map[*ttnpb.ApplicationIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicationSet map[ttnpb.ApplicationIdentifiers]struct{}) error {
 	for ids := range applicationSet {
-		webhooks, err := cleaner.WebRegistry.List(ctx, *ids, []string{"ids"})
+		webhooks, err := cleaner.WebRegistry.List(ctx, ids, []string{"ids"})
 		if err != nil {
 			return err
 		}
@@ -55,7 +55,7 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicatio
 	return nil
 }
 
-func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[*ttnpb.ApplicationIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[ttnpb.ApplicationIdentifiers]struct{}) error {
 	localSet, err := cleaner.RangeToLocalSet(ctx)
 	if err != nil {
 		return err

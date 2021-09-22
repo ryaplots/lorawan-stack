@@ -25,25 +25,25 @@ type RegistryCleaner struct {
 	ApplicationPackagesRegistry Registry
 }
 
-func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (localDevices map[*ttnpb.EndDeviceIdentifiers]struct{}, localApplications map[*ttnpb.ApplicationIdentifiers]struct{}, err error) {
-	localDevices = make(map[*ttnpb.EndDeviceIdentifiers]struct{})
-	localApplications = make(map[*ttnpb.ApplicationIdentifiers]struct{})
+func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (localDevices map[ttnpb.EndDeviceIdentifiers]struct{}, localApplications map[ttnpb.ApplicationIdentifiers]struct{}, err error) {
+	localDevices = make(map[ttnpb.EndDeviceIdentifiers]struct{})
+	localApplications = make(map[ttnpb.ApplicationIdentifiers]struct{})
 	err = cleaner.ApplicationPackagesRegistry.Range(ctx, []string{"ids"},
 		func(ctx context.Context, ids ttnpb.EndDeviceIdentifiers, pb *ttnpb.ApplicationPackageAssociation) bool {
-			localDevices[&ids] = struct{}{}
+			localDevices[ids] = struct{}{}
 			return true
 		},
 		func(ctx context.Context, ids ttnpb.ApplicationIdentifiers, pb *ttnpb.ApplicationPackageDefaultAssociation) bool {
-			localApplications[&ids] = struct{}{}
+			localApplications[ids] = struct{}{}
 			return true
 		},
 	)
 	return localDevices, localApplications, err
 }
 
-func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, deviceSet map[*ttnpb.EndDeviceIdentifiers]struct{}, applicationSet map[*ttnpb.ApplicationIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, deviceSet map[ttnpb.EndDeviceIdentifiers]struct{}, applicationSet map[ttnpb.ApplicationIdentifiers]struct{}) error {
 	for ids := range deviceSet {
-		associations, err := cleaner.ApplicationPackagesRegistry.ListAssociations(ctx, *ids, []string{"ids"})
+		associations, err := cleaner.ApplicationPackagesRegistry.ListAssociations(ctx, ids, []string{"ids"})
 		if err != nil {
 			return err
 		}
@@ -59,7 +59,7 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, deviceSet 
 		}
 	}
 	for ids := range applicationSet {
-		associations, err := cleaner.ApplicationPackagesRegistry.ListDefaultAssociations(ctx, *ids, []string{"ids"})
+		associations, err := cleaner.ApplicationPackagesRegistry.ListDefaultAssociations(ctx, ids, []string{"ids"})
 		if err != nil {
 			return err
 		}
@@ -77,7 +77,7 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, deviceSet 
 	return nil
 }
 
-func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isDeviceSet map[*ttnpb.EndDeviceIdentifiers]struct{}, isApplicationSet map[*ttnpb.ApplicationIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isDeviceSet map[ttnpb.EndDeviceIdentifiers]struct{}, isApplicationSet map[ttnpb.ApplicationIdentifiers]struct{}) error {
 	localDeviceSet, localApplicationSet, err := cleaner.RangeToLocalSet(ctx)
 	if err != nil {
 		return err

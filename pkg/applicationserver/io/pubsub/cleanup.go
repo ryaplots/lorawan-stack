@@ -26,20 +26,20 @@ type RegistryCleaner struct {
 	PubSubRegistry Registry
 }
 
-func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[*ttnpb.ApplicationIdentifiers]struct{}, err error) {
-	local = make(map[*ttnpb.ApplicationIdentifiers]struct{})
+func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[ttnpb.ApplicationIdentifiers]struct{}, err error) {
+	local = make(map[ttnpb.ApplicationIdentifiers]struct{})
 	err = cleaner.PubSubRegistry.Range(ctx, []string{"ids"},
 		func(ctx context.Context, ids ttnpb.ApplicationIdentifiers, pb *ttnpb.ApplicationPubSub) bool {
-			local[&ids] = struct{}{}
+			local[ids] = struct{}{}
 			return true
 		},
 	)
 	return local, err
 }
 
-func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicationSet map[*ttnpb.ApplicationIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicationSet map[ttnpb.ApplicationIdentifiers]struct{}) error {
 	for ids := range applicationSet {
-		pubsubs, err := cleaner.PubSubRegistry.List(ctx, *ids, []string{"ids"})
+		pubsubs, err := cleaner.PubSubRegistry.List(ctx, ids, []string{"ids"})
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicatio
 	return nil
 }
 
-func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[*ttnpb.ApplicationIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[ttnpb.ApplicationIdentifiers]struct{}) error {
 	localSet, err := cleaner.RangeToLocalSet(ctx)
 	if err != nil {
 		return err

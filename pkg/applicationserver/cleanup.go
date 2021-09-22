@@ -26,31 +26,31 @@ type RegistryCleaner struct {
 	AppUpsRegistry ApplicationUplinkRegistry
 }
 
-func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[*ttnpb.EndDeviceIdentifiers]struct{}, err error) {
+func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[ttnpb.EndDeviceIdentifiers]struct{}, err error) {
 	err = cleaner.DevRegistry.Range(ctx, []string{"ids"}, func(ctx context.Context, ids ttnpb.EndDeviceIdentifiers, dev *ttnpb.EndDevice) bool {
-		local[&ids] = struct{}{}
+		local[ids] = struct{}{}
 		return true
 	},
 	)
 	return local, err
 }
 
-func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, devSet map[*ttnpb.EndDeviceIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, devSet map[ttnpb.EndDeviceIdentifiers]struct{}) error {
 	for ids := range devSet {
-		_, err := cleaner.DevRegistry.Set(ctx, *ids, nil, func(dev *ttnpb.EndDevice) (*ttnpb.EndDevice, []string, error) {
+		_, err := cleaner.DevRegistry.Set(ctx, ids, nil, func(dev *ttnpb.EndDevice) (*ttnpb.EndDevice, []string, error) {
 			return nil, nil, nil
 		})
 		if err != nil {
 			return err
 		}
-		if err := cleaner.AppUpsRegistry.Clear(ctx, *ids); err != nil {
+		if err := cleaner.AppUpsRegistry.Clear(ctx, ids); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[*ttnpb.EndDeviceIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[ttnpb.EndDeviceIdentifiers]struct{}) error {
 	localSet, err := cleaner.RangeToLocalSet(ctx)
 	if err != nil {
 		return err

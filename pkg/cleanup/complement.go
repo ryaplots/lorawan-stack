@@ -18,8 +18,8 @@ import (
 	"go.thethings.network/lorawan-stack/v3/pkg/ttnpb"
 )
 
-func ComputeApplicationSetComplement(isSet map[*ttnpb.ApplicationIdentifiers]struct{}, localSet map[*ttnpb.ApplicationIdentifiers]struct{}) (complement map[*ttnpb.ApplicationIdentifiers]struct{}) {
-	complement = make(map[*ttnpb.ApplicationIdentifiers]struct{})
+func ComputeApplicationSetComplement(isSet map[ttnpb.ApplicationIdentifiers]struct{}, localSet map[ttnpb.ApplicationIdentifiers]struct{}) (complement map[ttnpb.ApplicationIdentifiers]struct{}) {
+	complement = make(map[ttnpb.ApplicationIdentifiers]struct{})
 	for appIds := range localSet {
 		if _, ok := isSet[appIds]; ok {
 			continue
@@ -29,8 +29,8 @@ func ComputeApplicationSetComplement(isSet map[*ttnpb.ApplicationIdentifiers]str
 	return complement
 }
 
-func ComputeDeviceSetComplement(isSet map[*ttnpb.EndDeviceIdentifiers]struct{}, localSet map[*ttnpb.EndDeviceIdentifiers]struct{}) (complement map[*ttnpb.EndDeviceIdentifiers]struct{}) {
-	complement = make(map[*ttnpb.EndDeviceIdentifiers]struct{})
+func ComputeDeviceSetComplement(isSet map[ttnpb.EndDeviceIdentifiers]struct{}, localSet map[ttnpb.EndDeviceIdentifiers]struct{}) (complement map[ttnpb.EndDeviceIdentifiers]struct{}) {
+	complement = make(map[ttnpb.EndDeviceIdentifiers]struct{})
 	for devIds := range localSet {
 		if _, ok := isSet[devIds]; ok {
 			continue
