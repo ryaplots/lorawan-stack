@@ -31,18 +31,18 @@ import (
 	"go.thethings.network/lorawan-stack/v3/pkg/ttnpb"
 )
 
-func toApplicationSet(list []*ttnpb.ApplicationIdentifiers) (set map[*ttnpb.ApplicationIdentifiers]struct{}) {
-	set = make(map[*ttnpb.ApplicationIdentifiers]struct{})
+func toApplicationSet(list []*ttnpb.ApplicationIdentifiers) (set map[ttnpb.ApplicationIdentifiers]struct{}) {
+	set = make(map[ttnpb.ApplicationIdentifiers]struct{})
 	for _, ids := range list {
-		set[ids] = struct{}{}
+		set[*ids] = struct{}{}
 	}
 	return set
 }
 
-func toDeviceSet(list []*ttnpb.EndDeviceIdentifiers) (set map[*ttnpb.EndDeviceIdentifiers]struct{}) {
-	set = make(map[*ttnpb.EndDeviceIdentifiers]struct{})
+func toDeviceSet(list []*ttnpb.EndDeviceIdentifiers) (set map[ttnpb.EndDeviceIdentifiers]struct{}) {
+	set = make(map[ttnpb.EndDeviceIdentifiers]struct{})
 	for _, ids := range list {
-		set[ids] = struct{}{}
+		set[*ids] = struct{}{}
 	}
 	return set
 }
@@ -73,7 +73,6 @@ var (
 				return err
 			}
 			isApplicationSet := toApplicationSet(appIds)
-			logger.Info(isApplicationSet)
 			logger.Info("Fetching Identity Server device set")
 			devIds, err := store.GetEndDeviceStore(db).FindAllEndDevices(ctx)
 			if err != nil {
@@ -81,8 +80,6 @@ var (
 			}
 			logger.Info("Get end device set")
 			isDeviceSet := toDeviceSet(devIds)
-			logger.Info(isDeviceSet)
-
 			logger.Info("Cleaning up pubsub registry")
 			pubsubCleaner := &pubsub.RegistryCleaner{
 				PubSubRegistry: &asiopsredis.PubSubRegistry{
