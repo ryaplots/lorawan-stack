@@ -29,20 +29,21 @@ import (
 	"go.thethings.network/lorawan-stack/v3/pkg/identityserver/store"
 	"go.thethings.network/lorawan-stack/v3/pkg/redis"
 	"go.thethings.network/lorawan-stack/v3/pkg/ttnpb"
+	"go.thethings.network/lorawan-stack/v3/pkg/unique"
 )
 
-func toApplicationSet(list []*ttnpb.ApplicationIdentifiers) (set map[ttnpb.ApplicationIdentifiers]struct{}) {
-	set = make(map[ttnpb.ApplicationIdentifiers]struct{})
+func toApplicationSet(list []*ttnpb.ApplicationIdentifiers) (set map[string]struct{}) {
+	set = make(map[string]struct{})
 	for _, ids := range list {
-		set[*ids] = struct{}{}
+		set[unique.ID(ctx, ids)] = struct{}{}
 	}
 	return set
 }
 
-func toDeviceSet(list []*ttnpb.EndDeviceIdentifiers) (set map[ttnpb.EndDeviceIdentifiers]struct{}) {
-	set = make(map[ttnpb.EndDeviceIdentifiers]struct{})
+func toDeviceSet(list []*ttnpb.EndDeviceIdentifiers) (set map[string]struct{}) {
+	set = make(map[string]struct{})
 	for _, ids := range list {
-		set[*ids] = struct{}{}
+		set[unique.ID(ctx, ids)] = struct{}{}
 	}
 	return set
 }
