@@ -19,26 +19,31 @@ import (
 
 	"go.thethings.network/lorawan-stack/v3/pkg/cleanup"
 	"go.thethings.network/lorawan-stack/v3/pkg/ttnpb"
+	"go.thethings.network/lorawan-stack/v3/pkg/unique"
 )
 
 type RegistryCleaner struct {
 	WebRegistry WebhookRegistry
 }
 
-func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[ttnpb.ApplicationIdentifiers]struct{}, err error) {
-	local = make(map[ttnpb.ApplicationIdentifiers]struct{})
+func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[string]struct{}, err error) {
+	local = make(map[string]struct{})
 	err = cleaner.WebRegistry.Range(ctx, []string{"ids"},
 		func(ctx context.Context, ids ttnpb.ApplicationIdentifiers, wh *ttnpb.ApplicationWebhook) bool {
-			local[ids] = struct{}{}
+			local[unique.ID(ctx, ids)] = struct{}{}
 			return true
 		},
 	)
 	return local, err
 }
 
-func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicationSet map[ttnpb.ApplicationIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicationSet map[string]struct{}) error {
 	for ids := range applicationSet {
-		webhooks, err := cleaner.WebRegistry.List(ctx, ids, []string{"ids"})
+		appIds, err := unique.ToApplicationID(ids)
+		if err != nil {
+			return err
+		}
+		webhooks, err := cleaner.WebRegistry.List(ctx, appIds, []string{"ids"})
 		if err != nil {
 			return err
 		}
@@ -56,12 +61,12 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicatio
 	return nil
 }
 
-func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[ttnpb.ApplicationIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[string]struct{}) error {
 	localSet, err := cleaner.RangeToLocalSet(ctx)
 	if err != nil {
 		return err
 	}
-	complement := cleanup.ComputeApplicationSetComplement(isSet, localSet)
+	complement := cleanup.ComputeSetComplement(isSet, localSet)
 	err = cleaner.DeleteComplement(ctx, complement)
 	if err != nil {
 		return err

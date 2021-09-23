@@ -18,28 +18,32 @@ import (
 	"context"
 
 	"go.thethings.network/lorawan-stack/v3/pkg/cleanup"
-	"go.thethings.network/lorawan-stack/v3/pkg/events"
 	"go.thethings.network/lorawan-stack/v3/pkg/ttnpb"
+	"go.thethings.network/lorawan-stack/v3/pkg/unique"
 )
 
 type RegistryCleaner struct {
 	PubSubRegistry Registry
 }
 
-func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[ttnpb.ApplicationIdentifiers]struct{}, err error) {
-	local = make(map[ttnpb.ApplicationIdentifiers]struct{})
+func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[string]struct{}, err error) {
+	local = make(map[string]struct{})
 	err = cleaner.PubSubRegistry.Range(ctx, []string{"ids"},
 		func(ctx context.Context, ids ttnpb.ApplicationIdentifiers, pb *ttnpb.ApplicationPubSub) bool {
-			local[ids] = struct{}{}
+			local[unique.ID(ctx, ids)] = struct{}{}
 			return true
 		},
 	)
 	return local, err
 }
 
-func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicationSet map[ttnpb.ApplicationIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicationSet map[string]struct{}) error {
 	for ids := range applicationSet {
-		pubsubs, err := cleaner.PubSubRegistry.List(ctx, ids, []string{"ids"})
+		appIds, err := unique.ToApplicationID(ids)
+		if err != nil {
+			return err
+		}
+		pubsubs, err := cleaner.PubSubRegistry.List(ctx, appIds, []string{"ids"})
 		if err != nil {
 			return err
 		}
@@ -52,18 +56,17 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicatio
 			if err != nil {
 				return err
 			}
-			events.Publish(evtDeletePubSub.NewWithIdentifiersAndData(ctx, &pubsub.ApplicationPubSubIdentifiers.ApplicationIdentifiers, pubsub.ApplicationPubSubIdentifiers))
 		}
 	}
 	return nil
 }
 
-func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[ttnpb.ApplicationIdentifiers]struct{}) error {
+func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[string]struct{}) error {
 	localSet, err := cleaner.RangeToLocalSet(ctx)
 	if err != nil {
 		return err
 	}
-	complement := cleanup.ComputeApplicationSetComplement(isSet, localSet)
+	complement := cleanup.ComputeSetComplement(isSet, localSet)
 	err = cleaner.DeleteComplement(ctx, complement)
 	if err != nil {
 		return err

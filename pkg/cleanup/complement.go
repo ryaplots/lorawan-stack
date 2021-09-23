@@ -14,28 +14,13 @@
 
 package cleanup
 
-import (
-	"go.thethings.network/lorawan-stack/v3/pkg/ttnpb"
-)
-
-func ComputeApplicationSetComplement(isSet map[ttnpb.ApplicationIdentifiers]struct{}, localSet map[ttnpb.ApplicationIdentifiers]struct{}) (complement map[ttnpb.ApplicationIdentifiers]struct{}) {
-	complement = make(map[ttnpb.ApplicationIdentifiers]struct{})
+func ComputeSetComplement(isSet map[string]struct{}, localSet map[string]struct{}) (complement map[string]struct{}) {
+	complement = make(map[string]struct{})
 	for appIds := range localSet {
 		if _, ok := isSet[appIds]; ok {
 			continue
 		}
 		complement[appIds] = struct{}{}
-	}
-	return complement
-}
-
-func ComputeDeviceSetComplement(isSet map[ttnpb.EndDeviceIdentifiers]struct{}, localSet map[ttnpb.EndDeviceIdentifiers]struct{}) (complement map[ttnpb.EndDeviceIdentifiers]struct{}) {
-	complement = make(map[ttnpb.EndDeviceIdentifiers]struct{})
-	for devIds := range localSet {
-		if _, ok := isSet[devIds]; ok {
-			continue
-		}
-		complement[devIds] = struct{}{}
 	}
 	return complement
 }
