@@ -20,6 +20,7 @@ import (
 
 	pbtypes "github.com/gogo/protobuf/types"
 	"github.com/jinzhu/gorm"
+	clusterauth "go.thethings.network/lorawan-stack/v3/pkg/auth/cluster"
 	"go.thethings.network/lorawan-stack/v3/pkg/auth/rights"
 	"go.thethings.network/lorawan-stack/v3/pkg/errors"
 	"go.thethings.network/lorawan-stack/v3/pkg/events"
@@ -363,6 +364,24 @@ func (is *IdentityServer) issueDevEUI(ctx context.Context, ids *ttnpb.Applicatio
 	return res, nil
 }
 
+func (is *IdentityServer) listAllApplications(ctx context.Context) (resp *ttnpb.ListAllApplicationsResponse, err error) {
+	if err := clusterauth.Authorized(ctx); err != nil {
+		return nil, err
+	}
+	resp = &ttnpb.ListAllApplicationsResponse{}
+	err = is.withDatabase(ctx, func(db *gorm.DB) error {
+		resp.ApplicationIds, err = store.GetApplicationStore(db).FindAllApplications(ctx)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 type applicationRegistry struct {
 	*IdentityServer
 }
@@ -397,4 +416,8 @@ func (ar *applicationRegistry) Restore(ctx context.Context, req *ttnpb.Applicati
 
 func (ar *applicationRegistry) IssueDevEUI(ctx context.Context, req *ttnpb.ApplicationIdentifiers) (*ttnpb.IssueDevEUIResponse, error) {
 	return ar.issueDevEUI(ctx, req)
+}
+
+func (ar *applicationRegistry) ListAll(ctx context.Context, req *pbtypes.Empty) (*ttnpb.ListAllApplicationsResponse, error) {
+	return ar.listAllApplications(ctx)
 }

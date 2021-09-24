@@ -234,6 +234,24 @@ func (is *IdentityServer) deleteEndDevice(ctx context.Context, ids *ttnpb.EndDev
 	return ttnpb.Empty, nil
 }
 
+func (is *IdentityServer) listAllEndDevices(ctx context.Context) (resp *ttnpb.ListAllEndDevicesResponse, err error) {
+	if err := clusterauth.Authorized(ctx); err != nil {
+		return nil, err
+	}
+	resp = &ttnpb.ListAllEndDevicesResponse{}
+	err = is.withDatabase(ctx, func(db *gorm.DB) error {
+		resp.EndDeviceIds, err = store.GetEndDeviceStore(db).FindAllEndDevices(ctx)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 type endDeviceRegistry struct {
 	*IdentityServer
 }
@@ -260,4 +278,8 @@ func (dr *endDeviceRegistry) Update(ctx context.Context, req *ttnpb.UpdateEndDev
 
 func (dr *endDeviceRegistry) Delete(ctx context.Context, req *ttnpb.EndDeviceIdentifiers) (*pbtypes.Empty, error) {
 	return dr.deleteEndDevice(ctx, req)
+}
+
+func (dr *endDeviceRegistry) ListAll(ctx context.Context, req *pbtypes.Empty) (*ttnpb.ListAllEndDevicesResponse, error) {
+	return dr.listAllEndDevices(ctx)
 }
