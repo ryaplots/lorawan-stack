@@ -2859,6 +2859,13 @@ var ConvertEndDeviceTemplateRequestFieldPathsTopLevel = []string{
 	"data",
 	"format_id",
 }
+var ListAllEndDevicesResponseFieldPathsNested = []string{
+	"end_device_ids",
+}
+
+var ListAllEndDevicesResponseFieldPathsTopLevel = []string{
+	"end_device_ids",
+}
 var MACParameters_ChannelFieldPathsNested = []string{
 	"downlink_frequency",
 	"enable_uplink",

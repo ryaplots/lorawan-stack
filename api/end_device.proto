@@ -658,3 +658,7 @@ message ConvertEndDeviceTemplateRequest {
   // Data to convert.
   bytes data = 2;
 }
+
+message ListAllEndDevicesResponse {
+  repeated EndDeviceIdentifiers end_device_ids = 1;
+}
