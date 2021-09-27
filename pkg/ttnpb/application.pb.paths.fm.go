@@ -218,10 +218,3 @@ var SetApplicationCollaboratorRequestFieldPathsTopLevel = []string{
 	"application_ids",
 	"collaborator",
 }
-var ListAllApplicationsResponseFieldPathsNested = []string{
-	"application_ids",
-}
-
-var ListAllApplicationsResponseFieldPathsTopLevel = []string{
-	"application_ids",
-}

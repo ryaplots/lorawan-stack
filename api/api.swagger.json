@@ -15295,28 +15295,6 @@
         }
       }
     },
-    "v3ListAllApplicationsResponse": {
-      "type": "object",
-      "properties": {
-        "application_ids": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v3ApplicationIdentifiers"
-          }
-        }
-      }
-    },
-    "v3ListAllEndDevicesResponse": {
-      "type": "object",
-      "properties": {
-        "end_device_ids": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v3EndDeviceIdentifiers"
-          }
-        }
-      }
-    },
     "v3ListEndDeviceBrandsResponse": {
       "type": "object",
       "properties": {

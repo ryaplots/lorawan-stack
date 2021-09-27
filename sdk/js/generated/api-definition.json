@@ -278,10 +278,6 @@
           ]
         }
       ]
-    },
-    "ListAll": {
-      "file": "lorawan-stack/api/application_services.proto",
-      "http": []
     }
   },
   "AppAs": {
@@ -2420,10 +2416,6 @@
           ]
         }
       ]
-    },
-    "ListAll": {
-      "file": "lorawan-stack/api/end_device_services.proto",
-      "http": []
     }
   },
   "EndDeviceTemplateConverter": {

@@ -119,8 +119,6 @@ service ApplicationRegistry {
       post: "/applications/{application_id}/dev-eui"
     };
   };
-
-  rpc ListAll(google.protobuf.Empty) returns (ListAllApplicationsResponse);
 }
 
 // The ApplicationAcces service, exposed by the Identity Server, is used to manage

@@ -15,7 +15,6 @@
   - [Message `GetApplicationCollaboratorRequest`](#ttn.lorawan.v3.GetApplicationCollaboratorRequest)
   - [Message `GetApplicationRequest`](#ttn.lorawan.v3.GetApplicationRequest)
   - [Message `IssueDevEUIResponse`](#ttn.lorawan.v3.IssueDevEUIResponse)
-  - [Message `ListAllApplicationsResponse`](#ttn.lorawan.v3.ListAllApplicationsResponse)
   - [Message `ListApplicationAPIKeysRequest`](#ttn.lorawan.v3.ListApplicationAPIKeysRequest)
   - [Message `ListApplicationCollaboratorsRequest`](#ttn.lorawan.v3.ListApplicationCollaboratorsRequest)
   - [Message `ListApplicationsRequest`](#ttn.lorawan.v3.ListApplicationsRequest)
@@ -202,7 +201,6 @@
   - [Message `EndDevices`](#ttn.lorawan.v3.EndDevices)
   - [Message `GetEndDeviceIdentifiersForEUIsRequest`](#ttn.lorawan.v3.GetEndDeviceIdentifiersForEUIsRequest)
   - [Message `GetEndDeviceRequest`](#ttn.lorawan.v3.GetEndDeviceRequest)
-  - [Message `ListAllEndDevicesResponse`](#ttn.lorawan.v3.ListAllEndDevicesResponse)
   - [Message `ListEndDevicesRequest`](#ttn.lorawan.v3.ListEndDevicesRequest)
   - [Message `MACParameters`](#ttn.lorawan.v3.MACParameters)
   - [Message `MACParameters.Channel`](#ttn.lorawan.v3.MACParameters.Channel)
@@ -723,12 +721,6 @@ Application is the message that defines an Application in the network.
 | ----- | ---- | ----- | ----------- |
 | `dev_eui` | [`bytes`](#bytes) |  |  |
 
-### <a name="ttn.lorawan.v3.ListAllApplicationsResponse">Message `ListAllApplicationsResponse`</a>
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| `application_ids` | [`ApplicationIdentifiers`](#ttn.lorawan.v3.ApplicationIdentifiers) | repeated |  |
-
 ### <a name="ttn.lorawan.v3.ListApplicationAPIKeysRequest">Message `ListApplicationAPIKeysRequest`</a>
 
 | Field | Type | Label | Description |
@@ -869,7 +861,6 @@ application registrations.
 Deployment configuration may specify if, and for how long after deletion, entities can be restored. |
 | `Purge` | [`ApplicationIdentifiers`](#ttn.lorawan.v3.ApplicationIdentifiers) | [`.google.protobuf.Empty`](#google.protobuf.Empty) | Purge the application. This will release the application ID for reuse. All end devices must be deleted from the application before it can be deleted. The application owner is responsible for clearing data from any (external) integrations that may store and expose data by application ID |
 | `IssueDevEUI` | [`ApplicationIdentifiers`](#ttn.lorawan.v3.ApplicationIdentifiers) | [`IssueDevEUIResponse`](#ttn.lorawan.v3.IssueDevEUIResponse) | Request DevEUI from the configured address block for a device inside the application. The maximum number of DevEUI's issued per application can be configured. |
-| `ListAll` | [`.google.protobuf.Empty`](#google.protobuf.Empty) | [`ListAllApplicationsResponse`](#ttn.lorawan.v3.ListAllApplicationsResponse) |  |
 
 #### HTTP bindings
 
@@ -3222,12 +3213,6 @@ Template for creating end devices.
 | ----- | ----------- |
 | `end_device_ids` | <p>`message.required`: `true`</p> |
 
-### <a name="ttn.lorawan.v3.ListAllEndDevicesResponse">Message `ListAllEndDevicesResponse`</a>
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| `end_device_ids` | [`EndDeviceIdentifiers`](#ttn.lorawan.v3.EndDeviceIdentifiers) | repeated |  |
-
 ### <a name="ttn.lorawan.v3.ListEndDevicesRequest">Message `ListEndDevicesRequest`</a>
 
 | Field | Type | Label | Description |
@@ -3559,7 +3544,6 @@ After registering an end device, it also needs to be registered in the NsEndDevi
 | `Delete` | [`EndDeviceIdentifiers`](#ttn.lorawan.v3.EndDeviceIdentifiers) | [`.google.protobuf.Empty`](#google.protobuf.Empty) | Delete the end device with the given IDs.
 
 Before deleting an end device it first needs to be deleted from the NsEndDeviceRegistry, the AsEndDeviceRegistry and the JsEndDeviceRegistry. This is NOT done automatically. |
-| `ListAll` | [`.google.protobuf.Empty`](#google.protobuf.Empty) | [`ListAllEndDevicesResponse`](#ttn.lorawan.v3.ListAllEndDevicesResponse) |  |
 
 #### HTTP bindings
 

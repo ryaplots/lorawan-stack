@@ -2438,10 +2438,18 @@ func (dst *ListEndDevicesRequest) SetFields(src *ListEndDevicesRequest, paths ..
 		case "application_ids":
 			if len(subs) > 0 {
 				var newDst, newSrc *ApplicationIdentifiers
-				if src != nil {
-					newSrc = &src.ApplicationIdentifiers
+				if (src == nil || src.ApplicationIdentifiers == nil) && dst.ApplicationIdentifiers == nil {
+					continue
 				}
-				newDst = &dst.ApplicationIdentifiers
+				if src != nil {
+					newSrc = src.ApplicationIdentifiers
+				}
+				if dst.ApplicationIdentifiers != nil {
+					newDst = dst.ApplicationIdentifiers
+				} else {
+					newDst = &ApplicationIdentifiers{}
+					dst.ApplicationIdentifiers = newDst
+				}
 				if err := newDst.SetFields(newSrc, subs...); err != nil {
 					return err
 				}
@@ -2449,8 +2457,7 @@ func (dst *ListEndDevicesRequest) SetFields(src *ListEndDevicesRequest, paths ..
 				if src != nil {
 					dst.ApplicationIdentifiers = src.ApplicationIdentifiers
 				} else {
-					var zero ApplicationIdentifiers
-					dst.ApplicationIdentifiers = zero
+					dst.ApplicationIdentifiers = nil
 				}
 			}
 		case "field_mask":
@@ -2705,26 +2712,6 @@ func (dst *ConvertEndDeviceTemplateRequest) SetFields(src *ConvertEndDeviceTempl
 				dst.Data = src.Data
 			} else {
 				dst.Data = nil
-			}
-
-		default:
-			return fmt.Errorf("invalid field: '%s'", name)
-		}
-	}
-	return nil
-}
-
-func (dst *ListAllEndDevicesResponse) SetFields(src *ListAllEndDevicesResponse, paths ...string) error {
-	for name, subs := range _processPaths(paths) {
-		switch name {
-		case "end_device_ids":
-			if len(subs) > 0 {
-				return fmt.Errorf("'end_device_ids' has no subfields, but %s were specified", subs)
-			}
-			if src != nil {
-				dst.EndDeviceIds = src.EndDeviceIds
-			} else {
-				dst.EndDeviceIds = nil
 			}
 
 		default:

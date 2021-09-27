@@ -573,30 +573,6 @@
           ]
         },
         {
-          "name": "ListAllApplicationsResponse",
-          "longName": "ListAllApplicationsResponse",
-          "fullName": "ttn.lorawan.v3.ListAllApplicationsResponse",
-          "description": "",
-          "hasExtensions": false,
-          "hasFields": true,
-          "hasOneofs": false,
-          "extensions": [],
-          "fields": [
-            {
-              "name": "application_ids",
-              "description": "",
-              "label": "repeated",
-              "type": "ApplicationIdentifiers",
-              "longType": "ApplicationIdentifiers",
-              "fullType": "ttn.lorawan.v3.ApplicationIdentifiers",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            }
-          ]
-        },
-        {
           "name": "ListApplicationAPIKeysRequest",
           "longName": "ListApplicationAPIKeysRequest",
           "fullName": "ttn.lorawan.v3.ListApplicationAPIKeysRequest",
@@ -1398,18 +1374,6 @@
                   ]
                 }
               }
-            },
-            {
-              "name": "ListAll",
-              "description": "",
-              "requestType": "Empty",
-              "requestLongType": ".google.protobuf.Empty",
-              "requestFullType": "google.protobuf.Empty",
-              "requestStreaming": false,
-              "responseType": "ListAllApplicationsResponse",
-              "responseLongType": "ListAllApplicationsResponse",
-              "responseFullType": "ttn.lorawan.v3.ListAllApplicationsResponse",
-              "responseStreaming": false
             }
           ]
         }
@@ -13622,30 +13586,6 @@
           ]
         },
         {
-          "name": "ListAllEndDevicesResponse",
-          "longName": "ListAllEndDevicesResponse",
-          "fullName": "ttn.lorawan.v3.ListAllEndDevicesResponse",
-          "description": "",
-          "hasExtensions": false,
-          "hasFields": true,
-          "hasOneofs": false,
-          "extensions": [],
-          "fields": [
-            {
-              "name": "end_device_ids",
-              "description": "",
-              "label": "repeated",
-              "type": "EndDeviceIdentifiers",
-              "longType": "EndDeviceIdentifiers",
-              "fullType": "ttn.lorawan.v3.EndDeviceIdentifiers",
-              "ismap": false,
-              "isoneof": false,
-              "oneofdecl": "",
-              "defaultValue": ""
-            }
-          ]
-        },
-        {
           "name": "ListEndDevicesRequest",
           "longName": "ListEndDevicesRequest",
           "fullName": "ttn.lorawan.v3.ListEndDevicesRequest",
@@ -15668,18 +15608,6 @@
                   ]
                 }
               }
-            },
-            {
-              "name": "ListAll",
-              "description": "",
-              "requestType": "Empty",
-              "requestLongType": ".google.protobuf.Empty",
-              "requestFullType": "google.protobuf.Empty",
-              "requestStreaming": false,
-              "responseType": "ListAllEndDevicesResponse",
-              "responseLongType": "ListAllEndDevicesResponse",
-              "responseFullType": "ttn.lorawan.v3.ListAllEndDevicesResponse",
-              "responseStreaming": false
             }
           ]
         },

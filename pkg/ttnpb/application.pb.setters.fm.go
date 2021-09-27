@@ -783,23 +783,3 @@ func (dst *SetApplicationCollaboratorRequest) SetFields(src *SetApplicationColla
 	}
 	return nil
 }
-
-func (dst *ListAllApplicationsResponse) SetFields(src *ListAllApplicationsResponse, paths ...string) error {
-	for name, subs := range _processPaths(paths) {
-		switch name {
-		case "application_ids":
-			if len(subs) > 0 {
-				return fmt.Errorf("'application_ids' has no subfields, but %s were specified", subs)
-			}
-			if src != nil {
-				dst.ApplicationIds = src.ApplicationIds
-			} else {
-				dst.ApplicationIds = nil
-			}
-
-		default:
-			return fmt.Errorf("invalid field: '%s'", name)
-		}
-	}
-	return nil
-}

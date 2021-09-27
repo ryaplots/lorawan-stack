@@ -96,8 +96,6 @@ service EndDeviceRegistry {
       delete: "/applications/{application_ids.application_id}/devices/{device_id}"
     };
   };
-
-  rpc ListAll(google.protobuf.Empty) returns(ListAllEndDevicesResponse);
 }
 
 service EndDeviceTemplateConverter {
