@@ -62,8 +62,6 @@ type EndDeviceStore interface {
 	GetEndDevice(ctx context.Context, id *ttnpb.EndDeviceIdentifiers, fieldMask *pbtypes.FieldMask) (*ttnpb.EndDevice, error)
 	UpdateEndDevice(ctx context.Context, dev *ttnpb.EndDevice, fieldMask *pbtypes.FieldMask) (*ttnpb.EndDevice, error)
 	DeleteEndDevice(ctx context.Context, id *ttnpb.EndDeviceIdentifiers) error
-	// Returns all devices in the IS store, used for garbage collection purposes.
-	FindAllEndDevices(ctx context.Context) ([]*ttnpb.EndDeviceIdentifiers, error)
 }
 
 // GatewayStore interface for storing Gateways.
