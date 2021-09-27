@@ -11,6 +11,8 @@ For details about compatibility between different releases, see the **Commitment
 
 ### Added
 
+- Server-side event filtering with the `names` field.
+
 ### Changed
 
 - The Gateway Server worker pools may now drop workers if they are idle for too long.
