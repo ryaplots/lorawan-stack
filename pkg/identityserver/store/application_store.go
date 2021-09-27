@@ -179,29 +179,3 @@ func (s *applicationStore) PurgeApplication(ctx context.Context, id *ttnpb.Appli
 	}
 	return s.purgeEntity(ctx, id)
 }
-
-func (s *applicationStore) FindAllApplications(ctx context.Context) ([]*ttnpb.ApplicationIdentifiers, error) {
-	defer trace.StartRegion(ctx, "find all applications").End()
-	query := s.query(ctx, Application{}, withSoftDeleted()).Select("application_id")
-	query = query.Order("application_id ASC")
-	if limit, offset := limitAndOffsetFromContext(ctx); limit != 0 {
-		countTotal(ctx, query.Model(&Application{}))
-		query = query.Limit(limit).Offset(offset)
-	}
-	var appModels []Application
-	if err := query.Find(&appModels).Error; err != nil {
-		return nil, err
-	}
-	setTotal(ctx, uint64(len(appModels)))
-	if query.Error != nil {
-		return nil, query.Error
-	}
-	appProtos := make([]*ttnpb.ApplicationIdentifiers, len(appModels))
-
-	for i, appModel := range appModels {
-		appProto := &ttnpb.Application{}
-		appModel.toPB(appProto, &pbtypes.FieldMask{})
-		appProtos[i] = &appProto.ApplicationIdentifiers
-	}
-	return appProtos, nil
-}

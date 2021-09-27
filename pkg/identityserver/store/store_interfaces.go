@@ -34,8 +34,6 @@ type ApplicationStore interface {
 	DeleteApplication(ctx context.Context, id *ttnpb.ApplicationIdentifiers) error
 	RestoreApplication(ctx context.Context, id *ttnpb.ApplicationIdentifiers) error
 	PurgeApplication(ctx context.Context, id *ttnpb.ApplicationIdentifiers) error
-	// Returns all non-expired applications in the IS store, used for garbage collection purposes.
-	FindAllApplications(ctx context.Context) ([]*ttnpb.ApplicationIdentifiers, error)
 }
 
 // ClientStore interface for storing Clients.
