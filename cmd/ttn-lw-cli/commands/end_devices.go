@@ -218,7 +218,7 @@ var (
 			}
 			limit, page, opt, getTotal := withPagination(cmd.Flags())
 			res, err := ttnpb.NewEndDeviceRegistryClient(is).List(ctx, &ttnpb.ListEndDevicesRequest{
-				ApplicationIdentifiers: *appID,
+				ApplicationIdentifiers: appID,
 				FieldMask:              &pbtypes.FieldMask{Paths: paths},
 				Limit:                  limit,
 				Page:                   page,

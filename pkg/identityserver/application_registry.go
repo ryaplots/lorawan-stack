@@ -157,29 +157,36 @@ func (is *IdentityServer) getApplication(ctx context.Context, req *ttnpb.GetAppl
 func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListApplicationsRequest) (apps *ttnpb.Applications, err error) {
 	req.FieldMask = cleanFieldMaskPaths(ttnpb.ApplicationFieldPathsNested, req.FieldMask, getPaths, nil)
 	var includeIndirect bool
-	if req.Collaborator == nil {
-		authInfo, err := is.authInfo(ctx)
-		if err != nil {
-			return nil, err
+	var clusterAuth bool
+	// If request comes from cluster (list all applications), skip caller rights check.
+	if clusterauth.Authorized(ctx) == nil && req.Collaborator == nil {
+		clusterAuth = true
+		ctx = store.WithSoftDeleted(ctx, false)
+	} else {
+		if req.Collaborator == nil {
+			authInfo, err := is.authInfo(ctx)
+			if err != nil {
+				return nil, err
+			}
+			collaborator := authInfo.GetOrganizationOrUserIdentifiers()
+			if collaborator == nil {
+				return &ttnpb.Applications{}, nil
+			}
+			req.Collaborator = collaborator
+			includeIndirect = true
 		}
-		collaborator := authInfo.GetOrganizationOrUserIdentifiers()
-		if collaborator == nil {
-			return &ttnpb.Applications{}, nil
+		if usrIDs := req.Collaborator.GetUserIds(); usrIDs != nil {
+			if err = rights.RequireUser(ctx, *usrIDs, ttnpb.RIGHT_USER_APPLICATIONS_LIST); err != nil {
+				return nil, err
+			}
+		} else if orgIDs := req.Collaborator.GetOrganizationIds(); orgIDs != nil {
+			if err = rights.RequireOrganization(ctx, *orgIDs, ttnpb.RIGHT_ORGANIZATION_APPLICATIONS_LIST); err != nil {
+				return nil, err
+			}
 		}
-		req.Collaborator = collaborator
-		includeIndirect = true
-	}
-	if usrIDs := req.Collaborator.GetUserIds(); usrIDs != nil {
-		if err = rights.RequireUser(ctx, *usrIDs, ttnpb.RIGHT_USER_APPLICATIONS_LIST); err != nil {
-			return nil, err
+		if req.Deleted {
+			ctx = store.WithSoftDeleted(ctx, true)
 		}
-	} else if orgIDs := req.Collaborator.GetOrganizationIds(); orgIDs != nil {
-		if err = rights.RequireOrganization(ctx, *orgIDs, ttnpb.RIGHT_ORGANIZATION_APPLICATIONS_LIST); err != nil {
-			return nil, err
-		}
-	}
-	if req.Deleted {
-		ctx = store.WithSoftDeleted(ctx, true)
 	}
 	ctx = store.WithOrder(ctx, req.Order)
 	var total uint64
@@ -191,12 +198,16 @@ func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListA
 	}()
 	apps = &ttnpb.Applications{}
 	err = is.withDatabase(ctx, func(db *gorm.DB) error {
-		ids, err := is.getMembershipStore(ctx, db).FindMemberships(paginateCtx, req.Collaborator, "application", includeIndirect)
-		if err != nil {
-			return err
-		}
-		if len(ids) == 0 {
-			return nil
+		var ids []*ttnpb.EntityIdentifiers
+		// If request comes from cluster, skip membership checks.
+		if !clusterAuth {
+			ids, err = is.getMembershipStore(ctx, db).FindMemberships(paginateCtx, req.Collaborator, "application", includeIndirect)
+			if err != nil {
+				return err
+			}
+			if len(ids) == 0 {
+				return nil
+			}
 		}
 		appIDs := make([]*ttnpb.ApplicationIdentifiers, 0, len(ids))
 		for _, id := range ids {
@@ -214,9 +225,12 @@ func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListA
 		return nil, err
 	}
 
-	for i, app := range apps.Applications {
-		if rights.RequireApplication(ctx, *app.GetIds(), ttnpb.RIGHT_APPLICATION_INFO) != nil {
-			apps.Applications[i] = app.PublicSafe()
+	// If request comes from cluster, skip trimming of application info.
+	if !clusterAuth {
+		for i, app := range apps.Applications {
+			if rights.RequireApplication(ctx, *app.GetIds(), ttnpb.RIGHT_APPLICATION_INFO) != nil {
+				apps.Applications[i] = app.PublicSafe()
+			}
 		}
 	}
 
@@ -364,24 +378,6 @@ func (is *IdentityServer) issueDevEUI(ctx context.Context, ids *ttnpb.Applicatio
 	return res, nil
 }
 
-func (is *IdentityServer) listAllApplications(ctx context.Context) (resp *ttnpb.ListAllApplicationsResponse, err error) {
-	if err := clusterauth.Authorized(ctx); err != nil {
-		return nil, err
-	}
-	resp = &ttnpb.ListAllApplicationsResponse{}
-	err = is.withDatabase(ctx, func(db *gorm.DB) error {
-		resp.ApplicationIds, err = store.GetApplicationStore(db).FindAllApplications(ctx)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
 type applicationRegistry struct {
 	*IdentityServer
 }
@@ -416,8 +412,4 @@ func (ar *applicationRegistry) Restore(ctx context.Context, req *ttnpb.Applicati
 
 func (ar *applicationRegistry) IssueDevEUI(ctx context.Context, req *ttnpb.ApplicationIdentifiers) (*ttnpb.IssueDevEUIResponse, error) {
 	return ar.issueDevEUI(ctx, req)
-}
-
-func (ar *applicationRegistry) ListAll(ctx context.Context, req *pbtypes.Empty) (*ttnpb.ListAllApplicationsResponse, error) {
-	return ar.listAllApplications(ctx)
 }

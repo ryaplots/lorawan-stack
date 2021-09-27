@@ -140,7 +140,12 @@ func (is *IdentityServer) getEndDeviceIdentifiersForEUIs(ctx context.Context, re
 }
 
 func (is *IdentityServer) listEndDevices(ctx context.Context, req *ttnpb.ListEndDevicesRequest) (devs *ttnpb.EndDevices, err error) {
-	if err = rights.RequireApplication(ctx, req.ApplicationIdentifiers, ttnpb.RIGHT_APPLICATION_DEVICES_READ); err != nil {
+	// If nil identifiers passed, check that the request came from the cluster.
+	if req.ApplicationIdentifiers == nil {
+		if err = clusterauth.Authorized(ctx); err != nil {
+			return nil, err
+		}
+	} else if err = rights.RequireApplication(ctx, *req.ApplicationIdentifiers, ttnpb.RIGHT_APPLICATION_DEVICES_READ); err != nil {
 		return nil, err
 	}
 	req.FieldMask = cleanFieldMaskPaths(ttnpb.EndDeviceFieldPathsNested, req.FieldMask, getPaths, nil)
@@ -154,7 +159,7 @@ func (is *IdentityServer) listEndDevices(ctx context.Context, req *ttnpb.ListEnd
 	}()
 	devs = &ttnpb.EndDevices{}
 	err = is.withDatabase(ctx, func(db *gorm.DB) (err error) {
-		devs.EndDevices, err = store.GetEndDeviceStore(db).ListEndDevices(ctx, &req.ApplicationIdentifiers, req.FieldMask)
+		devs.EndDevices, err = store.GetEndDeviceStore(db).ListEndDevices(ctx, req.ApplicationIdentifiers, req.FieldMask)
 		if err != nil {
 			return err
 		}
@@ -234,24 +239,6 @@ func (is *IdentityServer) deleteEndDevice(ctx context.Context, ids *ttnpb.EndDev
 	return ttnpb.Empty, nil
 }
 
-func (is *IdentityServer) listAllEndDevices(ctx context.Context) (resp *ttnpb.ListAllEndDevicesResponse, err error) {
-	if err := clusterauth.Authorized(ctx); err != nil {
-		return nil, err
-	}
-	resp = &ttnpb.ListAllEndDevicesResponse{}
-	err = is.withDatabase(ctx, func(db *gorm.DB) error {
-		resp.EndDeviceIds, err = store.GetEndDeviceStore(db).FindAllEndDevices(ctx)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
 type endDeviceRegistry struct {
 	*IdentityServer
 }
@@ -278,8 +265,4 @@ func (dr *endDeviceRegistry) Update(ctx context.Context, req *ttnpb.UpdateEndDev
 
 func (dr *endDeviceRegistry) Delete(ctx context.Context, req *ttnpb.EndDeviceIdentifiers) (*pbtypes.Empty, error) {
 	return dr.deleteEndDevice(ctx, req)
-}
-
-func (dr *endDeviceRegistry) ListAll(ctx context.Context, req *pbtypes.Empty) (*ttnpb.ListAllEndDevicesResponse, error) {
-	return dr.listAllEndDevices(ctx)
 }
