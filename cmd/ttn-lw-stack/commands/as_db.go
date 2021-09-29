@@ -15,40 +15,52 @@
 package commands
 
 import (
+	"context"
+	"crypto/tls"
 	"time"
 
+	pbtypes "github.com/gogo/protobuf/types"
 	"github.com/spf13/cobra"
-	"go.thethings.network/lorawan-stack/v3/pkg/applicationserver"
-	"go.thethings.network/lorawan-stack/v3/pkg/applicationserver/io/packages"
-	asioapredis "go.thethings.network/lorawan-stack/v3/pkg/applicationserver/io/packages/redis"
-	"go.thethings.network/lorawan-stack/v3/pkg/applicationserver/io/pubsub"
-	asiopsredis "go.thethings.network/lorawan-stack/v3/pkg/applicationserver/io/pubsub/redis"
 	"go.thethings.network/lorawan-stack/v3/pkg/applicationserver/io/web"
-	asiowebredis "go.thethings.network/lorawan-stack/v3/pkg/applicationserver/io/web/redis"
-	asredis "go.thethings.network/lorawan-stack/v3/pkg/applicationserver/redis"
-	"go.thethings.network/lorawan-stack/v3/pkg/identityserver/store"
-	"go.thethings.network/lorawan-stack/v3/pkg/redis"
+	"go.thethings.network/lorawan-stack/v3/pkg/cluster"
+	"go.thethings.network/lorawan-stack/v3/pkg/rpcclient"
 	"go.thethings.network/lorawan-stack/v3/pkg/ttnpb"
 	"go.thethings.network/lorawan-stack/v3/pkg/unique"
+	"google.golang.org/grpc"
 )
 
-func toApplicationSet(list []*ttnpb.ApplicationIdentifiers) (set map[string]struct{}) {
-	set = make(map[string]struct{})
-	for _, ids := range list {
-		set[unique.ID(ctx, ids)] = struct{}{}
+func NewClusterComponentConnection(ctx context.Context, config Config, role ttnpb.ClusterRole) (*grpc.ClientConn, cluster.Cluster, error) {
+	clusterOpts := []cluster.Option{
+		cluster.WithDialOptions(rpcclient.DefaultDialOptions),
 	}
-	return set
-}
-
-func toDeviceSet(list []*ttnpb.EndDeviceIdentifiers) (set map[string]struct{}) {
-	set = make(map[string]struct{})
-	for _, ids := range list {
-		set[unique.ID(ctx, ids)] = struct{}{}
+	if config.Cluster.TLS {
+		tlsConf := config.TLS
+		tls := &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: tlsConf.InsecureSkipVerify,
+		}
+		if err := tlsConf.Client.ApplyTo(tls); err != nil {
+			return nil, nil, err
+		}
+		logger.Info(tls)
+		clusterOpts = append(clusterOpts, cluster.WithTLSConfig(tls))
 	}
-	return set
+	c, err := cluster.New(ctx, &config.Cluster, clusterOpts...)
+	if err != nil {
+		return nil, nil, err
+	}
+	c.Join()
+	time.Sleep(20 * time.Millisecond)
+	cc, err := c.GetPeerConn(ctx, role, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return cc, c, nil
 }
 
 var (
+	// Define limit for pagination (maximum defined in protos).
+	limit       = uint32(1000)
 	asDBCommand = &cobra.Command{
 		Use:   "as-db",
 		Short: "Manage Application Server database",
@@ -60,73 +72,102 @@ var (
 			if config.Redis.IsZero() {
 				panic("Only Redis is supported by this command")
 			}
-
-			logger.Info("Connecting to Identity Server database...")
-			db, err := store.Open(ctx, config.IS.DatabaseURI)
+			// Initialize AS registry cleaners (together with their local app/dev sets).
+			logger.Info("Initiating pubsub client")
+			pubsubCleaner, err := NewPubSubCleaner(ctx, &config.Redis)
 			if err != nil {
 				return err
 			}
-			defer db.Close()
-
-			logger.Info("Fetching Identity Server application set")
-			appIds, err := store.GetApplicationStore(db).FindAllApplications(ctx)
-			if err != nil {
-				return err
-			}
-			isApplicationSet := toApplicationSet(appIds)
-			logger.Info("Fetching Identity Server device set")
-			devIds, err := store.GetEndDeviceStore(db).FindAllEndDevices(ctx)
-			if err != nil {
-				return err
-			}
-			logger.Info("Get end device set")
-			isDeviceSet := toDeviceSet(devIds)
-			logger.Info("Cleaning up pubsub registry")
-			pubsubCleaner := &pubsub.RegistryCleaner{
-				PubSubRegistry: &asiopsredis.PubSubRegistry{
-					Redis: redis.New(config.Redis.WithNamespace("as", "io", "pubsub")),
-				},
-			}
-			err = pubsubCleaner.CleanData(ctx, isApplicationSet)
-			if err != nil {
-				return err
-			}
-			logger.Info("Cleaning up webhook registry")
+			webhookCleaner := &web.RegistryCleaner{}
 			if config.AS.Webhooks.Target != "" {
-				webhookCleaner := &web.RegistryCleaner{
-					WebRegistry: &asiowebredis.WebhookRegistry{
-						Redis: redis.New(config.Redis.WithNamespace("as", "io", "webhooks")),
-					},
-				}
-				err = webhookCleaner.CleanData(ctx, isApplicationSet)
+				logger.Info("Initiating webhook client")
+				webhookCleaner, err = NewWebhookCleaner(ctx, &config.Redis)
 				if err != nil {
 					return err
 				}
 			}
-			logger.Info("Cleaning up application packages registry")
-			appPackagesCleaner := &packages.RegistryCleaner{
-				ApplicationPackagesRegistry: &asioapredis.ApplicationPackagesRegistry{
-					Redis:   redis.New(config.Redis.WithNamespace("as", "io", "applicationpackages")),
-					LockTTL: 10 * time.Second,
-				},
-			}
-			err = appPackagesCleaner.CleanData(ctx, isDeviceSet, isApplicationSet)
+			logger.Info("Initiating application packages registry")
+			appPackagesCleaner, err := NewPackagesCleaner(ctx, &config.Redis)
 			if err != nil {
 				return err
 			}
-			logger.Info("Cleaning up device data")
-			deviceCleaner := &applicationserver.RegistryCleaner{
-				DevRegistry: &asredis.DeviceRegistry{
-					Redis: NewComponentDeviceRegistryRedis(*config, "as"),
-				},
-				AppUpsRegistry: &asredis.ApplicationUplinkRegistry{
-					Redis: redis.New(config.Redis.WithNamespace("as", "applicationups")),
-					Limit: config.AS.UplinkStorage.Limit,
-				},
-			}
-			err = deviceCleaner.CleanData(ctx, isDeviceSet)
+			logger.Info("Initiating device registry")
+			deviceCleaner, err := NewASDeviceRegistryCleaner(ctx, &config.Redis)
 			if err != nil {
 				return err
+			}
+			// Create cluster and grpc connection with identity server.
+			conn, cl, err := NewClusterComponentConnection(ctx, *config, ttnpb.ClusterRole_ENTITY_REGISTRY)
+			if err != nil {
+				return err
+			}
+			client := ttnpb.NewApplicationRegistryClient(conn)
+			applicationIdentityServerSet := make(map[string]struct{})
+			pageCounter := uint32(1)
+			// Iterate over application list paginated requests and add them to the IS app map.
+			for {
+				res, err := client.List(ctx, &ttnpb.ListApplicationsRequest{
+					Collaborator: nil,
+					FieldMask:    &pbtypes.FieldMask{Paths: []string{"ids"}},
+					Limit:        limit,
+					Page:         pageCounter,
+				}, cl.Auth())
+				if err != nil {
+					return err
+				}
+				for _, app := range res.Applications {
+					applicationIdentityServerSet[unique.ID(ctx, app.ApplicationIdentifiers)] = struct{}{}
+				}
+				if len(res.Applications) < int(limit) {
+					break
+				}
+				pageCounter++
+			}
+
+			devClient := ttnpb.NewEndDeviceRegistryClient(conn)
+			deviceIdentityServerSet := make(map[string]struct{})
+			pageCounter = uint32(1)
+			// Iterate over device list paginated requests and add them to the IS dev map.
+			for {
+				res, err := devClient.List(ctx, &ttnpb.ListEndDevicesRequest{
+					ApplicationIds: nil,
+					FieldMask:      &pbtypes.FieldMask{Paths: []string{"ids"}},
+					Limit:          limit,
+					Page:           pageCounter,
+				}, cl.Auth())
+				if err != nil {
+					return err
+				}
+				for _, dev := range res.EndDevices {
+					deviceIdentityServerSet[unique.ID(ctx, dev.EndDeviceIdentifiers)] = struct{}{}
+				}
+				if len(res.EndDevices) < int(limit) {
+					break
+				}
+				pageCounter++
+			}
+			// Cleanup data from AS registries.
+			logger.Info("Cleaning pub sub registry")
+			err = pubsubCleaner.CleanData(ctx, deviceIdentityServerSet)
+			if err != nil {
+				return err
+			}
+			logger.Info("Cleaning app packages registry")
+			err = appPackagesCleaner.CleanData(ctx, deviceIdentityServerSet, applicationIdentityServerSet)
+			if err != nil {
+				return err
+			}
+			logger.Info("Cleaning device registry")
+			err = deviceCleaner.CleanData(ctx, deviceIdentityServerSet)
+			if err != nil {
+				return err
+			}
+			if webhookCleaner.WebRegistry != nil {
+				logger.Info("Cleaning webhook registry")
+				err = webhookCleaner.CleanData(ctx, deviceIdentityServerSet)
+				if err != nil {
+					return err
+				}
 			}
 			return nil
 		},
