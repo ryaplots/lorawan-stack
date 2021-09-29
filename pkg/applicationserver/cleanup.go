@@ -25,16 +25,17 @@ import (
 type RegistryCleaner struct {
 	DevRegistry    DeviceRegistry
 	AppUpsRegistry ApplicationUplinkRegistry
+	LocalSet       map[string]struct{}
 }
 
-func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[string]struct{}, err error) {
-	local = make(map[string]struct{})
-	err = cleaner.DevRegistry.Range(ctx, []string{"ids"}, func(ctx context.Context, ids ttnpb.EndDeviceIdentifiers, dev *ttnpb.EndDevice) bool {
-		local[unique.ID(ctx, ids)] = struct{}{}
+func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) error {
+	cleaner.LocalSet = make(map[string]struct{})
+	err := cleaner.DevRegistry.Range(ctx, []string{"ids"}, func(ctx context.Context, ids ttnpb.EndDeviceIdentifiers, dev *ttnpb.EndDevice) bool {
+		cleaner.LocalSet[unique.ID(ctx, ids)] = struct{}{}
 		return true
 	},
 	)
-	return local, err
+	return err
 }
 
 func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, devSet map[string]struct{}) error {
@@ -57,12 +58,8 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, devSet map
 }
 
 func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[string]struct{}) error {
-	localSet, err := cleaner.RangeToLocalSet(ctx)
-	if err != nil {
-		return err
-	}
-	complement := cleanup.ComputeSetComplement(isSet, localSet)
-	err = cleaner.DeleteComplement(ctx, complement)
+	complement := cleanup.ComputeSetComplement(isSet, cleaner.LocalSet)
+	err := cleaner.DeleteComplement(ctx, complement)
 	if err != nil {
 		return err
 	}

@@ -24,22 +24,24 @@ import (
 
 type RegistryCleaner struct {
 	ApplicationPackagesRegistry Registry
+	LocalDeviceSet              map[string]struct{}
+	LocalApplicationSet         map[string]struct{}
 }
 
-func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (localDevices map[string]struct{}, localApplications map[string]struct{}, err error) {
-	localDevices = make(map[string]struct{})
-	localApplications = make(map[string]struct{})
-	err = cleaner.ApplicationPackagesRegistry.Range(ctx, []string{"ids"},
+func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) error {
+	cleaner.LocalDeviceSet = make(map[string]struct{})
+	cleaner.LocalApplicationSet = make(map[string]struct{})
+	err := cleaner.ApplicationPackagesRegistry.Range(ctx, []string{"ids"},
 		func(ctx context.Context, ids ttnpb.EndDeviceIdentifiers, pb *ttnpb.ApplicationPackageAssociation) bool {
-			localDevices[unique.ID(ctx, ids)] = struct{}{}
+			cleaner.LocalDeviceSet[unique.ID(ctx, ids)] = struct{}{}
 			return true
 		},
 		func(ctx context.Context, ids ttnpb.ApplicationIdentifiers, pb *ttnpb.ApplicationPackageDefaultAssociation) bool {
-			localApplications[unique.ID(ctx, ids)] = struct{}{}
+			cleaner.LocalApplicationSet[unique.ID(ctx, ids)] = struct{}{}
 			return true
 		},
 	)
-	return localDevices, localApplications, err
+	return err
 }
 
 func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, deviceSet map[string]struct{}, applicationSet map[string]struct{}) error {
@@ -87,13 +89,9 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, deviceSet 
 }
 
 func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isDeviceSet map[string]struct{}, isApplicationSet map[string]struct{}) error {
-	localDeviceSet, localApplicationSet, err := cleaner.RangeToLocalSet(ctx)
-	if err != nil {
-		return err
-	}
-	devComplement := cleanup.ComputeSetComplement(isDeviceSet, localDeviceSet)
-	appComplement := cleanup.ComputeSetComplement(isApplicationSet, localApplicationSet)
-	err = cleaner.DeleteComplement(ctx, devComplement, appComplement)
+	devComplement := cleanup.ComputeSetComplement(isDeviceSet, cleaner.LocalDeviceSet)
+	appComplement := cleanup.ComputeSetComplement(isApplicationSet, cleaner.LocalApplicationSet)
+	err := cleaner.DeleteComplement(ctx, devComplement, appComplement)
 	if err != nil {
 		return err
 	}

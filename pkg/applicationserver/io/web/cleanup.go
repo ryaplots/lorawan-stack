@@ -24,17 +24,18 @@ import (
 
 type RegistryCleaner struct {
 	WebRegistry WebhookRegistry
+	LocalSet    map[string]struct{}
 }
 
-func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) (local map[string]struct{}, err error) {
-	local = make(map[string]struct{})
-	err = cleaner.WebRegistry.Range(ctx, []string{"ids"},
+func (cleaner *RegistryCleaner) RangeToLocalSet(ctx context.Context) error {
+	cleaner.LocalSet = make(map[string]struct{})
+	err := cleaner.WebRegistry.Range(ctx, []string{"ids"},
 		func(ctx context.Context, ids ttnpb.ApplicationIdentifiers, wh *ttnpb.ApplicationWebhook) bool {
-			local[unique.ID(ctx, ids)] = struct{}{}
+			cleaner.LocalSet[unique.ID(ctx, ids)] = struct{}{}
 			return true
 		},
 	)
-	return local, err
+	return err
 }
 
 func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicationSet map[string]struct{}) error {
@@ -62,12 +63,8 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicatio
 }
 
 func (cleaner *RegistryCleaner) CleanData(ctx context.Context, isSet map[string]struct{}) error {
-	localSet, err := cleaner.RangeToLocalSet(ctx)
-	if err != nil {
-		return err
-	}
-	complement := cleanup.ComputeSetComplement(isSet, localSet)
-	err = cleaner.DeleteComplement(ctx, complement)
+	complement := cleanup.ComputeSetComplement(isSet, cleaner.LocalSet)
+	err := cleaner.DeleteComplement(ctx, complement)
 	if err != nil {
 		return err
 	}
