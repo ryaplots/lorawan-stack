@@ -215,7 +215,7 @@ func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListA
 				appIDs = append(appIDs, appID)
 			}
 		}
-		apps.Applications, err = store.GetApplicationStore(db).FindApplications(ctx, appIDs, req.FieldMask)
+		apps.Applications, err = store.GetApplicationStore(db).FindApplications(paginateCtx, appIDs, req.FieldMask)
 		if err != nil {
 			return err
 		}
