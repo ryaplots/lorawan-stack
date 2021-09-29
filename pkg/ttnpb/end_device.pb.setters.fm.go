@@ -2438,26 +2438,26 @@ func (dst *ListEndDevicesRequest) SetFields(src *ListEndDevicesRequest, paths ..
 		case "application_ids":
 			if len(subs) > 0 {
 				var newDst, newSrc *ApplicationIdentifiers
-				if (src == nil || src.ApplicationIdentifiers == nil) && dst.ApplicationIdentifiers == nil {
+				if (src == nil || src.ApplicationIds == nil) && dst.ApplicationIds == nil {
 					continue
 				}
 				if src != nil {
-					newSrc = src.ApplicationIdentifiers
+					newSrc = src.ApplicationIds
 				}
-				if dst.ApplicationIdentifiers != nil {
-					newDst = dst.ApplicationIdentifiers
+				if dst.ApplicationIds != nil {
+					newDst = dst.ApplicationIds
 				} else {
 					newDst = &ApplicationIdentifiers{}
-					dst.ApplicationIdentifiers = newDst
+					dst.ApplicationIds = newDst
 				}
 				if err := newDst.SetFields(newSrc, subs...); err != nil {
 					return err
 				}
 			} else {
 				if src != nil {
-					dst.ApplicationIdentifiers = src.ApplicationIdentifiers
+					dst.ApplicationIds = src.ApplicationIds
 				} else {
-					dst.ApplicationIdentifiers = nil
+					dst.ApplicationIds = nil
 				}
 			}
 		case "field_mask":
