@@ -104,6 +104,9 @@ func (r PubSubRegistry) Range(ctx context.Context, paths []string, f func(contex
 		if err := ttnredis.GetProto(ctx, r.Redis, r.uidKey(appUID, psID)).ScanProto(pb); err != nil {
 			return err
 		}
+		if err != nil {
+			return errApplicationUID.WithCause(err).WithAttributes("application_uid", appUID, "pub_sub_id", psID)
+		}
 		pb, err = applyPubSubFieldMask(nil, pb, paths...)
 		if err != nil {
 			return err
