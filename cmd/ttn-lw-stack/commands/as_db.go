@@ -23,16 +23,13 @@ import (
 	"github.com/spf13/cobra"
 	"go.thethings.network/lorawan-stack/v3/pkg/applicationserver/io/web"
 	"go.thethings.network/lorawan-stack/v3/pkg/cluster"
-	"go.thethings.network/lorawan-stack/v3/pkg/rpcclient"
 	"go.thethings.network/lorawan-stack/v3/pkg/ttnpb"
 	"go.thethings.network/lorawan-stack/v3/pkg/unique"
 	"google.golang.org/grpc"
 )
 
 func NewClusterComponentConnection(ctx context.Context, config Config, role ttnpb.ClusterRole) (*grpc.ClientConn, cluster.Cluster, error) {
-	clusterOpts := []cluster.Option{
-		cluster.WithDialOptions(rpcclient.DefaultDialOptions),
-	}
+	clusterOpts := []cluster.Option{}
 	if config.Cluster.TLS {
 		tlsConf := config.TLS
 		tls := &tls.Config{
@@ -42,7 +39,6 @@ func NewClusterComponentConnection(ctx context.Context, config Config, role ttnp
 		if err := tlsConf.Client.ApplyTo(tls); err != nil {
 			return nil, nil, err
 		}
-		logger.Info(tls)
 		clusterOpts = append(clusterOpts, cluster.WithTLSConfig(tls))
 	}
 	c, err := cluster.New(ctx, &config.Cluster, clusterOpts...)
@@ -116,7 +112,7 @@ var (
 					return err
 				}
 				for _, app := range res.Applications {
-					applicationIdentityServerSet[unique.ID(ctx, app.ApplicationIdentifiers)] = struct{}{}
+					applicationIdentityServerSet[unique.ID(ctx, app.GetIds())] = struct{}{}
 				}
 				if len(res.Applications) < int(limit) {
 					break
