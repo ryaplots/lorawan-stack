@@ -132,6 +132,14 @@ func TestEndDevicesCRUD(t *testing.T) {
 
 		start := time.Now()
 
+		list, err := reg.List(ctx, &ttnpb.ListEndDevicesRequest{
+			FieldMask:      &pbtypes.FieldMask{Paths: []string{"name"}},
+			ApplicationIds: nil,
+		}, is.WithClusterAuth())
+
+		a.So(err, should.BeNil)
+		a.So(list.EndDevices, should.HaveLength, 16)
+
 		created, err := reg.Create(ctx, &ttnpb.CreateEndDeviceRequest{
 			EndDevice: ttnpb.EndDevice{
 				EndDeviceIdentifiers: ttnpb.EndDeviceIdentifiers{
@@ -190,7 +198,7 @@ func TestEndDevicesCRUD(t *testing.T) {
 			a.So(err, should.HaveSameErrorDefinitionAs, errEndDeviceEUIsTaken)
 		}
 
-		list, err := reg.List(ctx, &ttnpb.ListEndDevicesRequest{
+		list, err = reg.List(ctx, &ttnpb.ListEndDevicesRequest{
 			FieldMask:      &pbtypes.FieldMask{Paths: []string{"name"}},
 			ApplicationIds: app.GetIds(),
 		}, creds)
