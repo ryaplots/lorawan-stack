@@ -11,6 +11,8 @@ For details about compatibility between different releases, see the **Commitment
 
 ### Added
 
+- Configuration option `experimental.features` to enable experimental features.
+
 ### Changed
 
 ### Deprecated
