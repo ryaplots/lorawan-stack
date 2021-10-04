@@ -208,6 +208,9 @@ func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListA
 			if len(ids) == 0 {
 				return nil
 			}
+		} else {
+			// If request for listing all applications, apply pagination.
+			ctx = paginateCtx
 		}
 		appIDs := make([]*ttnpb.ApplicationIdentifiers, 0, len(ids))
 		for _, id := range ids {
@@ -215,7 +218,7 @@ func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListA
 				appIDs = append(appIDs, appID)
 			}
 		}
-		apps.Applications, err = store.GetApplicationStore(db).FindApplications(paginateCtx, appIDs, req.FieldMask)
+		apps.Applications, err = store.GetApplicationStore(db).FindApplications(ctx, appIDs, req.FieldMask)
 		if err != nil {
 			return err
 		}
