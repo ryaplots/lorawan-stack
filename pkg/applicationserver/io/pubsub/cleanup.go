@@ -44,6 +44,10 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, applicatio
 		if err != nil {
 			return err
 		}
+		ctx, err = unique.WithContext(ctx, ids)
+		if err != nil {
+			return err
+		}
 		pubsubs, err := cleaner.PubSubRegistry.List(ctx, appIds, []string{"ids"})
 		if err != nil {
 			return err

@@ -50,6 +50,10 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, deviceSet 
 		if err != nil {
 			return err
 		}
+		ctx, err = unique.WithContext(ctx, ids)
+		if err != nil {
+			return err
+		}
 		associations, err := cleaner.ApplicationPackagesRegistry.ListAssociations(ctx, devIds, []string{"ids"})
 		if err != nil {
 			return err
@@ -67,6 +71,10 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, deviceSet 
 	}
 	for ids := range applicationSet {
 		appIds, err := unique.ToApplicationID(ids)
+		if err != nil {
+			return err
+		}
+		ctx, err = unique.WithContext(ctx, ids)
 		if err != nil {
 			return err
 		}

@@ -44,6 +44,10 @@ func (cleaner *RegistryCleaner) DeleteComplement(ctx context.Context, devSet map
 		if err != nil {
 			return err
 		}
+		ctx, err = unique.WithContext(ctx, ids)
+		if err != nil {
+			return err
+		}
 		_, err = cleaner.DevRegistry.Set(ctx, devIds, nil, func(dev *ttnpb.EndDevice) (*ttnpb.EndDevice, []string, error) {
 			return nil, nil, nil
 		})
