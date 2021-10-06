@@ -204,9 +204,9 @@ func TestEndDevicesCRUD(t *testing.T) {
 		}, creds)
 
 		a.So(err, should.BeNil)
-		if a.So(list, should.NotBeNil) && a.So(list.EndDevices, should.HaveLength, 1) {
-			if a.So(list.EndDevices[0], should.NotBeNil) {
-				a.So(list.EndDevices[0].Name, should.Equal, "test-device-name")
+		if a.So(list, should.NotBeNil) && a.So(list.EndDevices, should.HaveLength, 2) {
+			if a.So(list.EndDevices[1], should.NotBeNil) {
+				a.So(list.EndDevices[1].Name, should.Equal, "test-device-name")
 			}
 		}
 
