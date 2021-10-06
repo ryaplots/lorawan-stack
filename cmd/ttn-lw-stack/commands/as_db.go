@@ -45,18 +45,77 @@ func NewClusterComponentConnection(ctx context.Context, config Config, role ttnp
 	if err != nil {
 		return nil, nil, err
 	}
-	c.Join()
-	time.Sleep(20 * time.Millisecond)
-	cc, err := c.GetPeerConn(ctx, role, nil)
-	if err != nil {
+	if err := c.Join(); err != nil {
 		return nil, nil, err
 	}
-	return cc, c, nil
+	var cc *grpc.ClientConn
+	for i := 0; i < maxRetries; i++ {
+		time.Sleep(time.Duration(delay) * time.Millisecond)
+		cc, err = c.GetPeerConn(ctx, role, nil)
+		if err == nil {
+			return cc, c, nil
+		}
+	}
+	return nil, nil, err
+}
+
+func FetchIdentityServerApplicationSet(ctx context.Context, client ttnpb.ApplicationRegistryClient, clusterAuth grpc.CallOption) (map[string]struct{}, error) {
+	applicationIdentityServerSet := make(map[string]struct{})
+	pageCounter := uint32(1)
+	// Iterate over application list paginated requests and add them to the IS app map.
+	for {
+		res, err := client.List(ctx, &ttnpb.ListApplicationsRequest{
+			Collaborator: nil,
+			FieldMask:    &pbtypes.FieldMask{Paths: []string{"ids"}},
+			Limit:        limit,
+			Page:         pageCounter,
+		}, clusterAuth)
+		if err != nil {
+			return nil, err
+		}
+		for _, app := range res.Applications {
+			applicationIdentityServerSet[unique.ID(ctx, app.GetIds())] = struct{}{}
+		}
+		if len(res.Applications) < int(limit) {
+			break
+		}
+		pageCounter++
+	}
+	return applicationIdentityServerSet, nil
+}
+
+func FetchIdentityServerEndDeviceSet(ctx context.Context, client ttnpb.EndDeviceRegistryClient, clusterAuth grpc.CallOption) (map[string]struct{}, error) {
+	deviceIdentityServerSet := make(map[string]struct{})
+	pageCounter := uint32(1)
+	// Iterate over application list paginated requests and add them to the IS app map.
+	for {
+		res, err := client.List(ctx, &ttnpb.ListEndDevicesRequest{
+			ApplicationIds: nil,
+			FieldMask:      &pbtypes.FieldMask{Paths: []string{"ids"}},
+			Limit:          limit,
+			Page:           pageCounter,
+		}, clusterAuth)
+		if err != nil {
+			return nil, err
+		}
+		for _, dev := range res.EndDevices {
+			deviceIdentityServerSet[unique.ID(ctx, dev.EndDeviceIdentifiers)] = struct{}{}
+		}
+		if len(res.EndDevices) < int(limit) {
+			break
+		}
+		pageCounter++
+	}
+	return deviceIdentityServerSet, nil
 }
 
 var (
 	// Define limit for pagination (maximum defined in protos).
-	limit       = uint32(1000)
+	limit = uint32(1000)
+	// Max retries to join cluster
+	maxRetries = 5
+	// Delay between retries to join cluster
+	delay       = 500
 	asDBCommand = &cobra.Command{
 		Use:   "as-db",
 		Short: "Manage Application Server database",
@@ -69,7 +128,7 @@ var (
 				panic("Only Redis is supported by this command")
 			}
 			// Initialize AS registry cleaners (together with their local app/dev sets).
-			logger.Info("Initiating pubsub client")
+			logger.Info("Initiating PubSub client")
 			pubsubCleaner, err := NewPubSubCleaner(ctx, &config.Redis)
 			if err != nil {
 				return err
@@ -97,58 +156,30 @@ var (
 			if err != nil {
 				return err
 			}
+			defer func() {
+				logger.Debug("Leaving cluster...")
+				if err := cl.Leave(); err != nil {
+					logger.WithError(err).Error("Could not leave cluster")
+				}
+				logger.Debug("Left cluster")
+			}()
 			client := ttnpb.NewApplicationRegistryClient(conn)
-			applicationIdentityServerSet := make(map[string]struct{})
-			pageCounter := uint32(1)
-			// Iterate over application list paginated requests and add them to the IS app map.
-			for {
-				res, err := client.List(ctx, &ttnpb.ListApplicationsRequest{
-					Collaborator: nil,
-					FieldMask:    &pbtypes.FieldMask{Paths: []string{"ids"}},
-					Limit:        limit,
-					Page:         pageCounter,
-				}, cl.Auth())
-				if err != nil {
-					return err
-				}
-				for _, app := range res.Applications {
-					applicationIdentityServerSet[unique.ID(ctx, app.GetIds())] = struct{}{}
-				}
-				if len(res.Applications) < int(limit) {
-					break
-				}
-				pageCounter++
-			}
-
-			devClient := ttnpb.NewEndDeviceRegistryClient(conn)
-			deviceIdentityServerSet := make(map[string]struct{})
-			pageCounter = uint32(1)
-			// Iterate over device list paginated requests and add them to the IS dev map.
-			for {
-				res, err := devClient.List(ctx, &ttnpb.ListEndDevicesRequest{
-					ApplicationIds: nil,
-					FieldMask:      &pbtypes.FieldMask{Paths: []string{"ids"}},
-					Limit:          limit,
-					Page:           pageCounter,
-				}, cl.Auth())
-				if err != nil {
-					return err
-				}
-				for _, dev := range res.EndDevices {
-					deviceIdentityServerSet[unique.ID(ctx, dev.EndDeviceIdentifiers)] = struct{}{}
-				}
-				if len(res.EndDevices) < int(limit) {
-					break
-				}
-				pageCounter++
-			}
-			// Cleanup data from AS registries.
-			logger.Info("Cleaning pub sub registry")
-			err = pubsubCleaner.CleanData(ctx, deviceIdentityServerSet)
+			applicationIdentityServerSet, err := FetchIdentityServerApplicationSet(ctx, client, cl.Auth())
 			if err != nil {
 				return err
 			}
-			logger.Info("Cleaning app packages registry")
+			devClient := ttnpb.NewEndDeviceRegistryClient(conn)
+			deviceIdentityServerSet, err := FetchIdentityServerEndDeviceSet(ctx, devClient, cl.Auth())
+			if err != nil {
+				return err
+			}
+			// Cleanup data from AS registries.
+			logger.Info("Cleaning PubSub registry")
+			err = pubsubCleaner.CleanData(ctx, applicationIdentityServerSet)
+			if err != nil {
+				return err
+			}
+			logger.Info("Cleaning application packages registry")
 			err = appPackagesCleaner.CleanData(ctx, deviceIdentityServerSet, applicationIdentityServerSet)
 			if err != nil {
 				return err
@@ -160,7 +191,7 @@ var (
 			}
 			if webhookCleaner.WebRegistry != nil {
 				logger.Info("Cleaning webhook registry")
-				err = webhookCleaner.CleanData(ctx, deviceIdentityServerSet)
+				err = webhookCleaner.CleanData(ctx, applicationIdentityServerSet)
 				if err != nil {
 					return err
 				}
