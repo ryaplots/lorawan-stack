@@ -227,7 +227,7 @@ func (r *DeviceRegistry) Set(ctx context.Context, ids ttnpb.EndDeviceIdentifiers
 }
 
 func (r *DeviceRegistry) Range(ctx context.Context, paths []string, f func(context.Context, ttnpb.EndDeviceIdentifiers, *ttnpb.EndDevice) bool) error {
-	return ttnredis.RangeRedisKeys(ctx, r.Redis, r.uidKey("*"), 1, func(key string) (bool, error) {
+	return ttnredis.RangeRedisKeys(ctx, r.Redis, r.uidKey(unique.GenericID(ctx)), 1, func(key string) (bool, error) {
 		dev := &ttnpb.EndDevice{}
 		if err := ttnredis.GetProto(ctx, r.Redis, key).ScanProto(dev); err != nil {
 			return false, err

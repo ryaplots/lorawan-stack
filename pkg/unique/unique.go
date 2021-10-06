@@ -41,6 +41,10 @@ func ID(ctx context.Context, id ttnpb.IDStringer) (res string) {
 	return res
 }
 
+func GenericID(ctx context.Context) (res string) {
+	return "*"
+}
+
 // WithContext returns the given context.
 func WithContext(ctx context.Context, uid string) (context.Context, error) {
 	return ctx, nil

@@ -513,7 +513,7 @@ func (r ApplicationPackagesRegistry) Range(
 	devFunc func(context.Context, ttnpb.EndDeviceIdentifiers, *ttnpb.ApplicationPackageAssociation) bool,
 	appFunc func(context.Context, ttnpb.ApplicationIdentifiers, *ttnpb.ApplicationPackageDefaultAssociation) bool,
 ) error {
-	return ttnredis.RangeRedisKeys(ctx, r.Redis, r.associationKey("*", "*"), 1, func(key string) (bool, error) {
+	return ttnredis.RangeRedisKeys(ctx, r.Redis, r.associationKey(unique.GenericID(ctx), "*"), 1, func(key string) (bool, error) {
 		if strings.Contains(key, ".") {
 			assoc := &ttnpb.ApplicationPackageAssociation{}
 			if err := ttnredis.GetProto(ctx, r.Redis, key).ScanProto(assoc); err != nil {

@@ -221,7 +221,7 @@ func (r WebhookRegistry) Set(ctx context.Context, ids ttnpb.ApplicationWebhookId
 
 // Range implements WebhookRegistry.
 func (r WebhookRegistry) Range(ctx context.Context, paths []string, f func(context.Context, ttnpb.ApplicationIdentifiers, *ttnpb.ApplicationWebhook) bool) error {
-	return ttnredis.RangeRedisKeys(ctx, r.Redis, r.idKey("*", "*"), 1, func(key string) (bool, error) {
+	return ttnredis.RangeRedisKeys(ctx, r.Redis, r.idKey(unique.GenericID(ctx), "*"), 1, func(key string) (bool, error) {
 		wh := &ttnpb.ApplicationWebhook{}
 		if err := ttnredis.GetProto(ctx, r.Redis, key).ScanProto(wh); err != nil {
 			return false, err
