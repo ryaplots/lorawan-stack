@@ -155,17 +155,19 @@ func (is *IdentityServer) getApplication(ctx context.Context, req *ttnpb.GetAppl
 
 func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListApplicationsRequest) (apps *ttnpb.Applications, err error) {
 	req.FieldMask = cleanFieldMaskPaths(ttnpb.ApplicationFieldPathsNested, req.FieldMask, getPaths, nil)
-	if req.Collaborator == nil {
-		authInfo, err := is.authInfo(ctx)
-		if err != nil {
-			return nil, err
-		}
-		collaborator := authInfo.GetOrganizationOrUserIdentifiers()
-		if collaborator == nil {
-			return &ttnpb.Applications{}, nil
-		}
-		req.Collaborator = collaborator
+
+	authInfo, err := is.authInfo(ctx)
+	if err != nil {
+		return nil, err
 	}
+	callerAccountID := authInfo.GetOrganizationOrUserIdentifiers()
+	if req.Collaborator == nil {
+		req.Collaborator = callerAccountID
+	}
+	if req.Collaborator == nil {
+		return &ttnpb.Applications{}, nil
+	}
+
 	if usrIDs := req.Collaborator.GetUserIds(); usrIDs != nil {
 		if err = rights.RequireUser(ctx, *usrIDs, ttnpb.RIGHT_USER_APPLICATIONS_LIST); err != nil {
 			return nil, err
@@ -175,9 +177,11 @@ func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListA
 			return nil, err
 		}
 	}
+
 	if req.Deleted {
 		ctx = store.WithSoftDeleted(ctx, true)
 	}
+
 	ctx = store.WithOrder(ctx, req.Order)
 	var total uint64
 	paginateCtx := store.WithPagination(ctx, req.Limit, req.Page, &total)
@@ -186,14 +190,28 @@ func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListA
 			setTotalHeader(ctx, total)
 		}
 	}()
+
 	apps = &ttnpb.Applications{}
+	var callerMemberships []*store.MembershipChain
+
 	err = is.withDatabase(ctx, func(db *gorm.DB) error {
-		ids, err := is.getMembershipStore(ctx, db).FindMemberships(paginateCtx, req.Collaborator, "application")
+		membershipStore := is.getMembershipStore(ctx, db)
+		ids, err := membershipStore.FindMemberships(paginateCtx, req.Collaborator, "application")
 		if err != nil {
 			return err
 		}
 		if len(ids) == 0 {
 			return nil
+		}
+		entityIDs := make([]string, 0, len(ids))
+		for _, id := range ids {
+			if appID := id.GetEntityIdentifiers().GetApplicationIds(); appID != nil {
+				entityIDs = append(entityIDs, appID.GetApplicationId())
+			}
+		}
+		callerMemberships, err = membershipStore.FindAccountMembershipChains(ctx, callerAccountID, "application", entityIDs...)
+		if err != nil {
+			return err
 		}
 		appIDs := make([]*ttnpb.ApplicationIdentifiers, 0, len(ids))
 		for _, id := range ids {
@@ -212,7 +230,14 @@ func (is *IdentityServer) listApplications(ctx context.Context, req *ttnpb.ListA
 	}
 
 	for i, app := range apps.Applications {
-		if rights.RequireApplication(ctx, *app.GetIds(), ttnpb.RIGHT_APPLICATION_INFO) != nil {
+		var entityRights *ttnpb.Rights
+		for _, membership := range callerMemberships {
+			if membership.EntityIdentifiers.IDString() != app.IDString() {
+				continue
+			}
+			entityRights = entityRights.Union(membership.GetRights())
+		}
+		if !entityRights.IncludesAll(ttnpb.RIGHT_APPLICATION_INFO) {
 			apps.Applications[i] = app.PublicSafe()
 		}
 	}
