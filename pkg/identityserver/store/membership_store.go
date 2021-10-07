@@ -189,6 +189,33 @@ func (m *MembershipChain) GetRights() *ttnpb.Rights {
 	return m.RightsOnEntity.Implied().Intersect(m.RightsOnOrganization.Implied())
 }
 
+// MembershipChains is a list of membership chains.
+type MembershipChains []*MembershipChain
+
+// GetRights returns the rights of the member on the entity.
+func (c MembershipChains) GetRights(member *ttnpb.OrganizationOrUserIdentifiers, entityID ttnpb.IDStringer) *ttnpb.Rights {
+	var entityRights *ttnpb.Rights
+	for _, membership := range c {
+		switch member.EntityType() {
+		case "organization":
+			if membership.OrganizationIdentifiers == nil || membership.OrganizationIdentifiers.IDString() != member.IDString() {
+				continue
+			}
+		case "user":
+			if membership.UserIdentifiers == nil || membership.UserIdentifiers.IDString() != member.IDString() {
+				continue
+			}
+		default:
+			continue
+		}
+		if membership.EntityIdentifiers.EntityType() != entityID.EntityType() || membership.EntityIdentifiers.IDString() != entityID.IDString() {
+			continue
+		}
+		entityRights = entityRights.Union(membership.GetRights())
+	}
+	return entityRights
+}
+
 func (s *membershipStore) FindAccountMembershipChains(ctx context.Context, accountID *ttnpb.OrganizationOrUserIdentifiers, entityType string, entityIDs ...string) ([]*MembershipChain, error) {
 	defer trace.StartRegion(ctx, fmt.Sprintf("find membership chains of user on %ss", entityType)).End()
 	query := s.queryMemberships(ctx, accountID, entityType, entityIDs...)

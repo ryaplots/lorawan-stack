@@ -230,7 +230,7 @@ func (is *IdentityServer) listClients(ctx context.Context, req *ttnpb.ListClient
 	}()
 
 	clis = &ttnpb.Clients{}
-	var callerMemberships []*store.MembershipChain
+	var callerMemberships store.MembershipChains
 
 	err = is.withDatabase(ctx, func(db *gorm.DB) error {
 		membershipStore := is.getMembershipStore(ctx, db)
@@ -241,13 +241,7 @@ func (is *IdentityServer) listClients(ctx context.Context, req *ttnpb.ListClient
 		if len(ids) == 0 {
 			return nil
 		}
-		entityIDs := make([]string, 0, len(ids))
-		for _, id := range ids {
-			if cliID := id.GetEntityIdentifiers().GetClientIds(); cliID != nil {
-				entityIDs = append(entityIDs, cliID.GetClientId())
-			}
-		}
-		callerMemberships, err = membershipStore.FindAccountMembershipChains(ctx, callerAccountID, "client", entityIDs...)
+		callerMemberships, err = membershipStore.FindAccountMembershipChains(ctx, callerAccountID, "client", idStrings(ids...)...)
 		if err != nil {
 			return err
 		}
@@ -268,13 +262,7 @@ func (is *IdentityServer) listClients(ctx context.Context, req *ttnpb.ListClient
 	}
 
 	for i, cli := range clis.Clients {
-		var entityRights *ttnpb.Rights
-		for _, membership := range callerMemberships {
-			if membership.EntityIdentifiers.IDString() != cli.IDString() {
-				continue
-			}
-			entityRights = entityRights.Union(membership.GetRights())
-		}
+		entityRights := callerMemberships.GetRights(callerAccountID, cli.GetIds())
 		if !entityRights.IncludesAll(ttnpb.RIGHT_CLIENT_ALL) {
 			clis.Clients[i] = cli.PublicSafe()
 		}

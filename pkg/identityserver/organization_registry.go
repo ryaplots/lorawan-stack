@@ -182,7 +182,7 @@ func (is *IdentityServer) listOrganizations(ctx context.Context, req *ttnpb.List
 	}()
 
 	orgs = &ttnpb.Organizations{}
-	var callerMemberships []*store.MembershipChain
+	var callerMemberships store.MembershipChains
 
 	err = is.withDatabase(ctx, func(db *gorm.DB) (err error) {
 		membershipStore := is.getMembershipStore(ctx, db)
@@ -193,13 +193,7 @@ func (is *IdentityServer) listOrganizations(ctx context.Context, req *ttnpb.List
 		if len(ids) == 0 {
 			return nil
 		}
-		entityIDs := make([]string, 0, len(ids))
-		for _, id := range ids {
-			if orgID := id.GetEntityIdentifiers().GetOrganizationIds(); orgID != nil {
-				entityIDs = append(entityIDs, orgID.GetOrganizationId())
-			}
-		}
-		callerMemberships, err = membershipStore.FindAccountMembershipChains(ctx, callerAccountID, "organization", entityIDs...)
+		callerMemberships, err = membershipStore.FindAccountMembershipChains(ctx, callerAccountID, "organization", idStrings(ids...)...)
 		if err != nil {
 			return err
 		}
@@ -220,13 +214,7 @@ func (is *IdentityServer) listOrganizations(ctx context.Context, req *ttnpb.List
 	}
 
 	for i, org := range orgs.Organizations {
-		var entityRights *ttnpb.Rights
-		for _, membership := range callerMemberships {
-			if membership.EntityIdentifiers.IDString() != org.IDString() {
-				continue
-			}
-			entityRights = entityRights.Union(membership.GetRights())
-		}
+		entityRights := callerMemberships.GetRights(callerAccountID, org.GetIds())
 		if !entityRights.IncludesAll(ttnpb.RIGHT_ORGANIZATION_INFO) {
 			orgs.Organizations[i] = org.PublicSafe()
 		}

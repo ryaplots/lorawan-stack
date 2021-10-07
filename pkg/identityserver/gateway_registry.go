@@ -339,7 +339,7 @@ func (is *IdentityServer) listGateways(ctx context.Context, req *ttnpb.ListGatew
 	}()
 
 	gtws = &ttnpb.Gateways{}
-	var callerMemberships []*store.MembershipChain
+	var callerMemberships store.MembershipChains
 
 	err = is.withDatabase(ctx, func(db *gorm.DB) error {
 		membershipStore := is.getMembershipStore(ctx, db)
@@ -350,13 +350,7 @@ func (is *IdentityServer) listGateways(ctx context.Context, req *ttnpb.ListGatew
 		if len(ids) == 0 {
 			return nil
 		}
-		entityIDs := make([]string, 0, len(ids))
-		for _, id := range ids {
-			if gtwID := id.GetEntityIdentifiers().GetGatewayIds(); gtwID != nil {
-				entityIDs = append(entityIDs, gtwID.GetGatewayId())
-			}
-		}
-		callerMemberships, err = membershipStore.FindAccountMembershipChains(ctx, callerAccountID, "gateway", entityIDs...)
+		callerMemberships, err = membershipStore.FindAccountMembershipChains(ctx, callerAccountID, "gateway", idStrings(ids...)...)
 		if err != nil {
 			return err
 		}
@@ -377,13 +371,7 @@ func (is *IdentityServer) listGateways(ctx context.Context, req *ttnpb.ListGatew
 	}
 
 	for i, gtw := range gtws.Gateways {
-		var entityRights *ttnpb.Rights
-		for _, membership := range callerMemberships {
-			if membership.EntityIdentifiers.IDString() != gtw.IDString() {
-				continue
-			}
-			entityRights = entityRights.Union(membership.GetRights())
-		}
+		entityRights := callerMemberships.GetRights(callerAccountID, gtw.GetIds())
 
 		// Backwards compatibility for frequency_plan_id field.
 		if len(gtw.FrequencyPlanIds) > 0 {
