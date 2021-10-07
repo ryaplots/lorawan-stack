@@ -73,6 +73,12 @@ func (is *IdentityServer) getRights(ctx context.Context, entityID *ttnpb.EntityI
 		return nil, universalRights, nil
 	}
 
+	// If the caller is requesting a user, and they're not that user (see above),
+	// they don't have rights on it, so nothing more to do.
+	if entityID.GetUserIds() != nil {
+		return nil, universalRights, nil
+	}
+
 	err = is.withDatabase(ctx, func(db *gorm.DB) error {
 		membershipChains, err := is.getMembershipStore(ctx, db).FindAccountMembershipChains(ctx, ouID, entityID.EntityType(), entityID.IDString())
 		if err != nil {
